@@ -1,62 +1,74 @@
-<!doctype html>
-<html lang="fa" dir="rtl">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#0b2118">
-<title>مانیتور فروش ماهانه | رز لر</title>
-<style>
-:root{color-scheme:dark;--bg:#07130e;--panel:#0b2118;--panel2:#10291e;--line:#315440;--gold:#d8b76b;--text:#f4f2e9;--muted:#a9bcb0;--red:#ffb4a8}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#123424 0,#07130e 58%);color:var(--text);font-family:Tahoma,Arial,sans-serif;line-height:1.7}
-.wrap{max-width:1000px;margin:auto;padding:16px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:8px 0 18px}.brand{display:flex;align-items:center;gap:12px}.rose{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:#173b29;border:1px solid var(--gold);font-size:24px}.brand h1{font-size:20px;margin:0}.brand p{margin:0;color:var(--muted);font-size:12px}.panel{background:linear-gradient(145deg,#10291e,#0b2118);border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 10px 28px #0002}.head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.title{font-size:18px;margin:0}.muted{color:var(--muted);font-size:13px}.btn{border:1px solid #806a39;background:#173b29;color:var(--gold);border-radius:10px;padding:9px 13px;font:inherit;cursor:pointer}.btn:disabled{opacity:.5}.summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0}.kpi{background:#0a1d15;border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0}.kpi span,.kpi small{display:block;color:var(--muted);font-size:12px}.kpi strong{display:block;color:var(--gold);font-size:clamp(16px,3.8vw,23px);overflow-wrap:anywhere}.field{margin:12px 0}.field label{display:block;margin-bottom:5px;color:var(--muted);font-size:13px}input{width:100%;background:#07130e;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:12px;font:inherit}.cards{display:grid;grid-template-columns:1fr;gap:10px;margin-top:12px}.card{border:1px solid var(--line);background:linear-gradient(145deg,#10291e,#0b2118);border-radius:14px;padding:13px}.cardhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}.cardhead strong{font-size:16px}.badge{color:var(--gold);border:1px solid #806a39;border-radius:999px;padding:1px 8px;font-size:11px;white-space:nowrap}.greenhouses{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.greenhouse{background:#0a1d15;border-radius:10px;padding:10px;border:1px solid #253f30;min-width:0}.greenhouse h3{margin:0 0 7px;color:var(--gold);font-size:14px}.metric{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:4px 0;border-bottom:1px solid #253f3055}.metric:last-child{border:0}.metric span{color:var(--muted)}.metric b{text-align:left;overflow-wrap:anywhere}.empty{color:var(--muted);font-size:13px;padding:16px;text-align:center;border:1px dashed var(--line);border-radius:12px}.error{color:var(--red)}footer{text-align:center;color:var(--muted);font-size:11px;padding:18px}
-@media(max-width:520px){.summary{grid-template-columns:1fr 1fr}.kpi:last-child{grid-column:1/-1}.greenhouses{grid-template-columns:1fr}.wrap{padding:10px}}
-</style>
-</head>
-<body><main class="wrap">
-<header class="top"><div class="brand"><div class="rose">🌹</div><div><h1>رز لر</h1><p>مانیتور میانگین فروش ماهانه</p></div></div><button class="btn" id="reload">به‌روزرسانی</button></header>
-<section class="panel">
-<div class="head"><h2 class="title">گزارش ماه جاری</h2><span class="muted" id="monthLabel">محاسبه ماه شمسی…</span></div>
-<div class="summary"><div class="kpi"><span>مجموع دسته‌ها</span><strong id="totalBundles">—</strong></div><div class="kpi"><span>مجموع فروش</span><strong id="totalAmount">—</strong><small>ریال</small></div><div class="kpi"><span>میانگین هر دسته</span><strong id="avg">—</strong><small>ریال</small></div></div>
-<div class="field"><label for="search">جست‌وجوی مشتری</label><input id="search" type="search" placeholder="نام مشتری را بنویس…"></div>
-<div id="cards" class="cards"><div class="empty">در حال آماده‌سازی گزارش…</div></div>
-</section><footer>ROSELOR · منبع داده: Supabase · تمام مبالغ به ریال</footer></main>
-<script>
-const BASE="https://amiahhuapkqwbtcsmzal.supabase.co",KEY="sb_publishable_Pmkqa_CAi9O_jZQDBt4aHA_FSgikXZu";
-const $=id=>document.getElementById(id),num=n=>Number(n||0).toLocaleString("fa-IR",{maximumFractionDigits:2}),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-let rows=[];
-function monthStartISO(){
- const now=new Date(),fmt=new Intl.DateTimeFormat("en-US-u-ca-persian-nu-latn",{year:"numeric",month:"numeric",day:"numeric",timeZone:"Asia/Tehran"});
- const parts=d=>Object.fromEntries(fmt.formatToParts(d).filter(x=>x.type!=="literal").map(x=>[x.type,Number(x.value)]));
- const cur=parts(now);let d=new Date(now);
- for(let i=0;i<35;i++){const p=parts(d);if(p.year===cur.year&&p.month===cur.month&&p.day===1){
-  const g=Object.fromEntries(new Intl.DateTimeFormat("en-US-u-ca-gregory-nu-latn",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:"Asia/Tehran"}).formatToParts(d).filter(x=>x.type!=="literal").map(x=>[x.type,Number(x.value)]));
-  return `${g.year}-${String(g.month).padStart(2,"0")}-${String(g.day).padStart(2,"0")}T00:00:00+03:30`;
- }d.setTime(d.getTime()-86400000)}
- throw Error("شروع ماه شمسی محاسبه نشد");
+<!-- رز لر: مانیتور میانگین فروش ماهانه
+۱) این دکمه را داخل <div class="nav"> اضافه کن -->
+<button data-tab="sales">میانگین فروش ماه</button>
+
+<!-- ۲) این section را کنار سایر sectionها اضافه کن -->
+<section id="sales" class="hidden">
+ <div class="panel">
+  <div class="head"><h2 class="title">مانیتور میانگین فروش ماه</h2><button class="btn ghost" id="reloadSales">به‌روزرسانی</button></div>
+  <p class="muted small" id="salesMonthLabel">از ابتدای ماه شمسی تا امروز · داده‌های Supabase</p>
+  <div class="sales-summary">
+   <div class="sales-kpi"><span>مجموع دسته‌ها</span><strong id="salesTotalBundles">—</strong></div>
+   <div class="sales-kpi"><span>مجموع فروش</span><strong id="salesTotalAmount">—</strong><small>ریال</small></div>
+   <div class="sales-kpi"><span>میانگین هر دسته</span><strong id="salesAvg">—</strong><small>ریال</small></div>
+  </div>
+  <div class="field"><label for="salesSearch">جست‌وجوی مشتری</label><input id="salesSearch" type="search" placeholder="نام مشتری…"></div>
+  <div id="salesMonitorCards" class="sales-cards"><div class="sales-empty">در حال دریافت اطلاعات…</div></div>
+ </div>
+</section>
+
+<!-- ۳) CSS را داخل style فعلی بگذار؛ تگ style جدید نساز -->
+.sales-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:14px 0}
+.sales-kpi{background:#10291e;border:1px solid #315440;border-radius:13px;padding:12px;min-width:0}
+.sales-kpi span,.sales-kpi small{display:block;color:#a9bcb0;font-size:12px}
+.sales-kpi strong{display:block;color:#d8b76b;font-size:clamp(15px,3.5vw,22px);overflow-wrap:anywhere}
+.sales-cards{display:grid;grid-template-columns:1fr;gap:10px;margin-top:12px}
+.sales-card{border:1px solid #315440;background:linear-gradient(145deg,#10291e,#0b2118);border-radius:14px;padding:13px}
+.sales-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.sales-card-head strong{font-size:16px}.sales-badge{color:#d8b76b;border:1px solid #806a39;border-radius:999px;padding:1px 8px;font-size:11px}
+.sales-greenhouses{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.sales-greenhouse{background:#0a1d15;border-radius:10px;padding:10px;border:1px solid #253f30;min-width:0}
+.sales-greenhouse h4{margin:0 0 7px;color:#d8b76b;font-size:13px}
+.sales-metric{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:3px 0}
+.sales-metric span{color:#a9bcb0}.sales-metric b{text-align:left;overflow-wrap:anywhere}
+.sales-empty{color:#a9bcb0;font-size:13px;padding:16px;text-align:center;border:1px dashed #315440;border-radius:12px}
+@media(max-width:520px){.sales-summary{grid-template-columns:1fr 1fr}.sales-kpi:last-child{grid-column:1/-1}.sales-greenhouses{grid-template-columns:1fr}}
+
+<!-- ۴) JavaScript را داخل script فعلی بگذار -->
+const salesNum=n=>Number(n||0).toLocaleString('fa-IR',{maximumFractionDigits:2});
+function salesMonthStartISO(){
+ const now=new Date(), f=new Intl.DateTimeFormat('en-US-u-ca-persian-nu-latn',{year:'numeric',month:'numeric',day:'numeric',timeZone:'Asia/Tehran'});
+ const parts=d=>Object.fromEntries(f.formatToParts(d).filter(x=>x.type!=='literal').map(x=>[x.type,Number(x.value)]));
+ const cur=parts(now), d=new Date(now); d.setHours(12,0,0,0);
+ for(let i=0;i<35;i++){const x=parts(d);if(x.year===cur.year&&x.month===cur.month&&x.day===1){
+  const y=d.getFullYear(),m=d.getMonth(),day=d.getDate();
+  // Tehran midnight is UTC-3:30.
+  return new Date(Date.UTC(y,m,day)-210*60000).toISOString();
+ }d.setDate(d.getDate()-1);}
+ return new Date(now.getFullYear(),now.getMonth(),1).toISOString();
 }
-async function api(action,body={}){
- const raw=sessionStorage.getItem("roselor-session");if(!raw)throw Error("ابتدا در برنامه اصلی حسابداری رز لر وارد شوید؛ سپس این صفحه را در همان مرورگر باز کنید.");
- let sess;try{sess=JSON.parse(raw)}catch{throw Error("نشست ورود قابل خواندن نیست؛ دوباره وارد برنامه شوید.")}
- if(!sess?.access_token)throw Error("نشست ورود معتبر نیست؛ ابتدا دوباره وارد برنامه شوید.");
- const r=await fetch(BASE+"/functions/v1/roselor-accounting-api",{method:"POST",headers:{apikey:KEY,"Content-Type":"application/json",Authorization:"Bearer "+sess.access_token},body:JSON.stringify({action,...body})});
- const d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw Error(d.error||d.message||("خطای سرویس "+r.status));return d;
+let salesRows=[];
+function renderSales(){
+ const q=(E('salesSearch').value||'').trim().toLocaleLowerCase('fa');
+ const rows=salesRows.filter(x=>(x.customer_name||'').toLocaleLowerCase('fa').includes(q));
+ const totalB=rows.reduce((s,x)=>s+x.quantity_bundles,0),totalA=rows.reduce((s,x)=>s+x.amount_rial,0);
+ E('salesTotalBundles').textContent=salesNum(totalB);E('salesTotalAmount').textContent=salesNum(totalA);E('salesAvg').textContent=salesNum(totalB?totalA/totalB:0);
+ const map=new Map();
+ rows.forEach(r=>{if(!map.has(r.customer_id))map.set(r.customer_id,{name:r.customer_name,azna:{b:0,a:0,n:0},khorramabad:{b:0,a:0,n:0}});
+  const c=map.get(r.customer_id),g=r.greenhouse==='azna'?c.azna:r.greenhouse==='khorramabad'?c.khorramabad:null;if(!g)return;g.b+=r.quantity_bundles;g.a+=r.amount_rial;g.n+=r.invoice_count;});
+ const metric=(g)=>`<div class="sales-metric"><span>میانگین هر دسته</span><b>${salesNum(g.b?g.a/g.b:0)} ریال</b></div><div class="sales-metric"><span>تعداد دسته</span><b>${salesNum(g.b)}</b></div><div class="sales-metric"><span>مجموع فروش</span><b>${salesNum(g.a)} ریال</b></div><div class="sales-metric"><span>تعداد فاکتور</span><b>${salesNum(g.n)}</b></div>`;
+ const cards=[...map.values()].sort((a,b)=>a.name.localeCompare(b.name,'fa'));
+ E('salesMonitorCards').innerHTML=cards.length?cards.map(c=>`<article class="sales-card"><div class="sales-card-head"><strong>${esc(c.name)}</strong><span class="sales-badge">ماه جاری</span></div><div class="sales-greenhouses"><div class="sales-greenhouse"><h4>ازنا</h4>${metric(c.azna)}</div><div class="sales-greenhouse"><h4>خرم‌آباد</h4>${metric(c.khorramabad)}</div></div></article>`).join(''):'<div class="sales-empty">برای این ماه فاکتوری پیدا نشد.</div>';
 }
-function render(){
- const q=$("search").value.trim().toLocaleLowerCase("fa"),visible=rows.filter(x=>(x.customer_name||"").toLocaleLowerCase("fa").includes(q));
- const b=visible.reduce((s,x)=>s+x.quantity_bundles,0),a=visible.reduce((s,x)=>s+x.amount_rial,0);
- $("totalBundles").textContent=num(b);$("totalAmount").textContent=num(a);$("avg").textContent=num(b?a/b:0);
- const m=new Map();for(const r of visible){if(!m.has(r.customer_id))m.set(r.customer_id,{name:r.customer_name,azna:{b:0,a:0,n:0},khorramabad:{b:0,a:0,n:0}});
- const c=m.get(r.customer_id),g=r.greenhouse==="azna"?c.azna:r.greenhouse==="khorramabad"?c.khorramabad:null;if(!g)continue;g.b+=r.quantity_bundles;g.a+=r.amount_rial;g.n++}
- const metric=g=>`<div class="metric"><span>میانگین هر دسته</span><b>${num(g.b?g.a/g.b:0)} ریال</b></div><div class="metric"><span>تعداد دسته</span><b>${num(g.b)}</b></div><div class="metric"><span>مجموع فروش</span><b>${num(g.a)} ریال</b></div><div class="metric"><span>تعداد فاکتور</span><b>${num(g.n)}</b></div>`;
- const list=[...m.values()].sort((a,b)=>a.name.localeCompare(b.name,"fa"));
- $("cards").innerHTML=list.length?list.map(c=>`<article class="card"><div class="cardhead"><strong>${esc(c.name)}</strong><span class="badge">ماه جاری</span></div><div class="greenhouses"><div class="greenhouse"><h3>ازنا</h3>${metric(c.azna)}</div><div class="greenhouse"><h3>خرم‌آباد</h3>${metric(c.khorramabad)}</div></div></article>`).join(""):'<div class="empty">برای این ماه فاکتوری پیدا نشد.</div>';
+async function loadSalesMonitor(){
+ E('salesMonitorCards').innerHTML='<div class="sales-empty">در حال دریافت فاکتورها از Supabase…</div>';
+ try{const d=await api('monthly_sales_monitor',{month_start:salesMonthStartISO()});if(!d||!d.ok)throw Error(d?.error||'پاسخ نامعتبر');
+  const m=new Map();(d.entries||[]).forEach(r=>{const k=r.customer_id+'|'+r.greenhouse;if(!m.has(k))m.set(k,{customer_id:r.customer_id,customer_name:r.customer_name,greenhouse:r.greenhouse,amount_rial:0,quantity_bundles:0,invoice_count:0});
+   const a=m.get(k);a.amount_rial+=Number(r.amount_rial||0);a.quantity_bundles+=Number(r.quantity_bundles||0);a.invoice_count++;});
+  salesRows=[...m.values()];E('salesMonthLabel').textContent='از ابتدای ماه شمسی تا امروز · میانگین وزنی فروش هر دسته';renderSales();
+ }catch(e){E('salesMonitorCards').innerHTML='<div class="sales-empty">دریافت ناموفق بود: '+esc(e.message||'خطای نامشخص')+'</div>';}
 }
-async function load(){
- $("reload").disabled=true;$("cards").innerHTML='<div class="empty">در حال دریافت فاکتورهای تأییدشده از Supabase…</div>';
- try{const start=monthStartISO();$("monthLabel").textContent="شروع ماه شمسی: "+start.slice(0,10);const d=await api("monthly_sales_monitor",{month_start:start});
- const m=new Map();for(const r of d.entries||[]){const k=r.invoice_id;if(!k)continue;m.set(k,{customer_id:r.customer_id,customer_name:r.customer_name,greenhouse:r.greenhouse,quantity_bundles:Number(r.quantity_bundles||0),amount_rial:Number(r.amount_rial||0)})}
- rows=[...m.values()];render();
- }catch(e){$("cards").innerHTML='<div class="empty error">'+esc(e.message||"خطای نامشخص")+'</div>'}finally{$("reload").disabled=false}
-}
-$("reload").addEventListener("click",load);$("search").addEventListener("input",render);load();
-</script></body></html>
+E('reloadSales')?.addEventListener('click',loadSalesMonitor);E('salesSearch')?.addEventListener('input',renderSales);
+<!-- در تابع tab(id)، "sales" را به آرایه شناسه‌ها اضافه کن و این شرط را اضافه کن:
+if(id==="sales")loadSalesMonitor();
+-->
