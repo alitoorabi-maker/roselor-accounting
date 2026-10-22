@@ -14,7 +14,12 @@ const $=id=>document.getElementById(id),esc=v=>String(v??"").replace(/[&<>"']/g,
 async function req(path,opts={}){const h={apikey:KEY,"Content-Type":"application/json",...(opts.headers||{})};if(session?.access_token)h.Authorization="Bearer "+session.access_token;const r=await fetch(BASE+path,{...opts,headers:h}),d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.msg||d.message||d.error||("خطای سرویس "+r.status));return d}
 async function portalApi(action,more={}){return req("/functions/v1/roselor-customer-portal",{method:"POST",body:JSON.stringify({action,...more})})}
 async function login(){const b=$("loginBtn");b.disabled=true;try{session=await req("/auth/v1/token?grant_type=password",{method:"POST",body:JSON.stringify({email:$("email").value.trim(),password:$("password").value})});const d=await portalApi("portal_data");if(!d.verified||!d.customer)throw Error("این حساب به پنل گل‌فروش متصل نیست. با رز لر تماس بگیرید.");data=d;$("login").classList.add("hidden");$("portal").classList.remove("hidden");$("conn").textContent="متصل به Supabase";$("customerName").textContent=d.customer.name;renderSummary();await loadAverage();renderList("invoices")}catch(e){session=null;status("loginMsg",e.message,"error")}finally{b.disabled=false}}
-function renderSummary(){const opening=(data.opening_balances||[]).reduce((s,x)=>s+Number(x.amount_rial||0),0),net=(data.ledger||[]).reduce((s,x)=>s+Number(x.debit_rial||0)-Number(x.credit_rial||0),0);$("balance").textContent=fmt(opening+net)+" ریال"}
+function renderSummary(){
+  const net=(data.ledger||[]).reduce(
+    (s,x)=>s+Number(x.debit_rial||0)-Number(x.credit_rial||0),0
+  );
+  $("balance").textContent=fmt(Number(data.balance_rial??net))+" ریال";
+}
 function persianParts(d){
   const parts=new Intl.DateTimeFormat("en-u-ca-persian",{
     timeZone:"Asia/Tehran",year:"numeric",month:"numeric",day:"numeric"
