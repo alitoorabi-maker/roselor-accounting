@@ -5,7 +5,7 @@
 <section id="login" class="panel"><h2 class="title">ورود به حساب شخصی</h2><p class="muted">فقط اطلاعات حساب خودتان نمایش داده می‌شود.</p><div class="field"><label for="email">ایمیل</label><input id="email" type="email" autocomplete="username"></div><div class="field"><label for="password">رمز عبور</label><input id="password" type="password" autocomplete="current-password"></div><button id="loginBtn" class="btn" style="width:100%">ورود امن</button><div id="loginMsg" class="status hidden"></div></section>
 <main id="portal" class="hidden"><section class="panel"><div class="row"><div><div class="sub">خوش آمدید</div><h2 id="customerName" class="title" style="font-size:23px;margin:0">حساب گل‌فروش</h2></div><button id="logoutBtn" class="btn ghost">خروج امن</button></div><p class="sub">اطلاعات از سامانهٔ حسابداری رز لر · مبالغ به ریال</p></section>
 <div class="grid"><div class="stat"><div class="label">ماندهٔ حساب</div><div class="value" id="balance">—</div><div class="sub">بر اساس گردش حساب و ماندهٔ افتتاحیه</div></div><div class="stat"><div class="label">میانگین فروش هر دسته</div><div class="value" id="avgAll">—</div><div class="sub" id="monthLabel">ماه جاری · روش فعلی رز لر</div></div></div>
-<section class="panel"><div class="row"><h2 class="title">میانگین فروش ماهانه</h2><button id="refreshAvg" class="btn ghost">به‌روزرسانی</button></div><div class="grid"><div class="stat"><div class="label">خرم‌آباد</div><div class="value" id="avgKh">—</div><div class="sub" id="bundlesKh">تعداد دسته: —</div></div><div class="stat"><div class="label">ازنا</div><div class="value" id="avgAz">—</div><div class="sub" id="bundlesAz">تعداد دسته: —</div></div></div><div id="avgMsg" class="status hidden"></div></section>
+<section class="panel"><div class="row"><h2 class="title">میانگین فروش ماهانه</h2><button id="refreshAvg" class="btn ghost">به‌روزرسانی</button></div><div class="field"><label for="avgMonthSelect">ماه گزارش</label><select id="avgMonthSelect"></select></div><div class="grid"><div class="stat"><div class="label">خرم‌آباد</div><div class="value" id="avgKh">—</div><div class="sub" id="bundlesKh">تعداد دسته: —</div></div><div class="stat"><div class="label">ازنا</div><div class="value" id="avgAz">—</div><div class="sub" id="bundlesAz">تعداد دسته: —</div></div></div><div id="avgMsg" class="status hidden"></div></section>
 <div class="tabs"><button class="active" data-view="invoices">فاکتورهای من</button><button data-view="payments">پرداخت‌های من</button><button data-view="shipments">بارهای من</button><button data-view="ledger">گردش حساب</button></div>
 <section class="panel"><h2 class="title" id="listTitle">فاکتورهای من</h2><div id="listContent" class="muted">در حال دریافت اطلاعات…</div></section></main><div class="footer">ROSELOR · حسابداری گلخانه‌ها · ریال</div></div>
 <script>
@@ -15,8 +15,98 @@ async function req(path,opts={}){const h={apikey:KEY,"Content-Type":"application
 async function portalApi(action,more={}){return req("/functions/v1/roselor-customer-portal",{method:"POST",body:JSON.stringify({action,...more})})}
 async function login(){const b=$("loginBtn");b.disabled=true;try{session=await req("/auth/v1/token?grant_type=password",{method:"POST",body:JSON.stringify({email:$("email").value.trim(),password:$("password").value})});const d=await portalApi("portal_data");if(!d.verified||!d.customer)throw Error("این حساب به پنل گل‌فروش متصل نیست. با رز لر تماس بگیرید.");data=d;$("login").classList.add("hidden");$("portal").classList.remove("hidden");$("conn").textContent="متصل به Supabase";$("customerName").textContent=d.customer.name;renderSummary();await loadAverage();renderList("invoices")}catch(e){session=null;status("loginMsg",e.message,"error")}finally{b.disabled=false}}
 function renderSummary(){const opening=(data.opening_balances||[]).reduce((s,x)=>s+Number(x.amount_rial||0),0),net=(data.ledger||[]).reduce((s,x)=>s+Number(x.debit_rial||0)-Number(x.credit_rial||0),0);$("balance").textContent=fmt(opening+net)+" ریال"}
-function persianMonthRange(){const fmtParts=d=>{const p=new Intl.DateTimeFormat("en-u-ca-persian",{timeZone:"Asia/Tehran",year:"numeric",month:"numeric",day:"numeric"}).formatToParts(d),o={};for(const x of p)if(x.type!=="literal")o[x.type]=Number(x.value);return o};const now=new Date(),cur=fmtParts(now);let d=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate())),start=new Date(d);for(let i=0;i<32;i++){let prev=new Date(start.getTime()-86400000),p=fmtParts(prev);if(p.year!==cur.year||p.month!==cur.month)break;start=prev}let end=new Date(start);for(let i=0;i<32;i++){let p=fmtParts(end);if(p.year!==cur.year||p.month!==cur.month)break;end=new Date(end.getTime()+86400000)}const iso=d=>d.toISOString().slice(0,10)+"T00:00:00+03:30";return {start:iso(start),end:iso(end),label:cur.year+"/"+String(cur.month).padStart(2,"0")}}
-async function loadAverage(){try{const r=persianMonthRange();average=await portalApi("monthly_average",{month_start:r.start,month_end:r.end});if(!average.verified)throw Error("میانگین تأیید نشد");const t=average.totals;$("avgKh").textContent=t.khorramabad.bundles?fmt(average.average_rial.khorramabad)+" ریال":"—";$("avgAz").textContent=t.azna.bundles?fmt(average.average_rial.azna)+" ریال":"—";$("bundlesKh").textContent="تعداد دسته: "+fmt(t.khorramabad.bundles);$("bundlesAz").textContent="تعداد دسته: "+fmt(t.azna.bundles);const amount=t.azna.amount_rial+t.khorramabad.amount_rial,bundles=t.azna.bundles+t.khorramabad.bundles;$("avgAll").textContent=bundles?fmt(amount/bundles)+" ریال":"—";$("monthLabel").textContent=r.label+" · فروش ناخالص تقسیم بر تعداد دسته";$("avgMsg").className="status hidden"}catch(e){status("avgMsg","دریافت میانگین ناموفق بود: "+e.message,"error")}}
+function persianParts(d){
+  const parts=new Intl.DateTimeFormat("en-u-ca-persian",{
+    timeZone:"Asia/Tehran",year:"numeric",month:"numeric",day:"numeric"
+  }).formatToParts(d);
+  const out={};
+  for(const p of parts)if(p.type!=="literal")out[p.type]=Number(p.value);
+  return out;
+}
+function shiftDays(d,n){
+  const x=new Date(d);
+  x.setUTCDate(x.getUTCDate()+n);
+  return x;
+}
+function monthRangeFor(anchor){
+  const parts=persianParts(anchor);
+  let start=new Date(Date.UTC(anchor.getUTCFullYear(),anchor.getUTCMonth(),anchor.getUTCDate()));
+  while(true){
+    const prev=shiftDays(start,-1),p=persianParts(prev);
+    if(p.year!==parts.year||p.month!==parts.month)break;
+    start=prev;
+  }
+  let end=shiftDays(start,1);
+  while(true){
+    const p=persianParts(end);
+    if(p.year!==parts.year||p.month!==parts.month)break;
+    end=shiftDays(end,1);
+  }
+  const iso=d=>d.toISOString().slice(0,10)+"T00:00:00+03:30";
+  return {
+    start:iso(start),
+    end:iso(end),
+    label:parts.year+"/"+String(parts.month).padStart(2,"0")
+  };
+}
+function initAverageMonths(){
+  const select=$("avgMonthSelect");
+  if(!select)return;
+  const now=new Date(),current=monthRangeFor(now);
+  select.innerHTML="";
+  for(let offset=0;offset<12;offset++){
+    const anchor=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth()-offset,15,12));
+    const range=monthRangeFor(anchor);
+    const option=document.createElement("option");
+    option.value=range.label;
+    option.textContent=range.label+(offset===0?" · ماه جاری":"");
+    option.dataset.start=range.start;
+    option.dataset.end=range.end;
+    select.appendChild(option);
+  }
+  select.value=current.label;
+}
+async function loadAverage(){
+  try{
+    const select=$("avgMonthSelect");
+    const option=select?.selectedOptions?.[0];
+    const range=option
+      ?{start:option.dataset.start,end:option.dataset.end,label:option.value}
+      :monthRangeFor(new Date());
+
+    average=await portalApi("monthly_average",{
+      month_start:range.start,
+      month_end:range.end
+    });
+    if(!average?.verified){
+      throw Error(average?.error||average?.detail||"میانگین تأیید نشد");
+    }
+
+    const totals=average.totals||{};
+    const kh=totals.khorramabad||{amount_rial:0,bundles:0};
+    const az=totals.azna||{amount_rial:0,bundles:0};
+    const khBundles=Number(kh.bundles||0);
+    const azBundles=Number(az.bundles||0);
+    const khAmount=Number(kh.amount_rial||0);
+    const azAmount=Number(az.amount_rial||0);
+
+    $("avgKh").textContent=khBundles
+      ?fmt(average.average_rial?.khorramabad)+" ریال":"—";
+    $("avgAz").textContent=azBundles
+      ?fmt(average.average_rial?.azna)+" ریال":"—";
+    $("bundlesKh").textContent="تعداد دسته: "+fmt(khBundles);
+    $("bundlesAz").textContent="تعداد دسته: "+fmt(azBundles);
+
+    const amount=khAmount+azAmount;
+    const bundles=khBundles+azBundles;
+    if($("avgAll"))$("avgAll").textContent=bundles?fmt(amount/bundles)+" ریال":"—";
+    if($("monthLabel"))$("monthLabel").textContent=range.label+" · فروش ناخالص تقسیم بر تعداد دسته";
+    $("avgMsg").className="status hidden";
+    $("avgMsg").textContent="";
+  }catch(e){
+    status("avgMsg","دریافت میانگین ناموفق بود: "+(e?.message||"خطای نامشخص"),"error");
+  }
+}
 function renderList(view){const names={invoices:"فاکتورهای من",payments:"پرداخت‌های من",shipments:"بارهای من",ledger:"گردش حساب"};$("listTitle").textContent=names[view];document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===view));let rows=[],html="";if(view==="invoices"){rows=data.invoices||[];html=rows.map(x=>{const sh=(data.shipments||[]).find(s=>s.id===x.shipment_id)||{};return '<div class="card"><div class="row"><strong>فاکتور '+esc(x.id)+'</strong><span class="pill">'+esc(x.status||"ثبت‌شده")+'</span></div><div class="sub">تاریخ: '+date(x.invoice_date)+' · گلخانه: '+(sh.greenhouse==="azna"?"ازنا":sh.greenhouse==="khorramabad"?"خرم‌آباد":"—")+'</div><div>مبلغ ناخالص: <strong>'+fmt(x.amount_rial)+' ریال</strong></div><div>کسورات: '+fmt(x.commission_rial)+' ریال · مبلغ نهایی: '+fmt(x.net_sales_rial)+' ریال</div></div>'}).join("")}else if(view==="payments"){rows=data.payments||[];html=rows.map(x=>'<div class="card"><div class="row"><strong>پرداخت</strong><span class="pill">'+date(x.payment_date)+'</span></div><div class="value">'+fmt(x.amount_rial)+' ریال</div><div class="sub">'+esc(x.notes||"پرداخت ثبت‌شده")+'</div></div>').join("")}else if(view==="shipments"){rows=data.shipments||[];html=rows.map(x=>'<div class="card"><div class="row"><strong>بار ارسالی</strong><span class="pill">'+esc(x.status||"ثبت‌شده")+'</span></div><div>تاریخ: '+date(x.shipped_at)+' · گلخانه: '+(x.greenhouse==="azna"?"ازنا":x.greenhouse==="khorramabad"?"خرم‌آباد":"—")+'</div><div class="value">'+fmt(x.quantity_bundles)+' دسته</div></div>').join("")}else{rows=data.ledger||[];html=(data.opening_balances||[]).map(x=>'<div class="card"><strong>مانده افتتاحیه · '+(x.greenhouse==="azna"?"ازنا":x.greenhouse==="khorramabad"?"خرم‌آباد":"مشترک")+'</strong><div class="value">'+fmt(x.amount_rial)+' ریال</div><div class="sub">تاریخ مبنا: '+date(x.as_of_date)+'</div></div>').join("")+rows.map(x=>'<div class="card"><div class="row"><strong>'+esc(x.description||x.source_type||"رویداد حسابداری")+'</strong><span class="pill">'+(x.greenhouse==="azna"?"ازنا":x.greenhouse==="khorramabad"?"خرم‌آباد":"مشترک")+'</span></div><div class="sub">'+date(x.event_at)+' · '+esc(x.source_type||"")+'</div><div>بدهکار: '+fmt(x.debit_rial)+' · بستانکار: '+fmt(x.credit_rial)+'</div><div class="value">مانده پس از رویداد: '+fmt(x.balance_after_rial)+' ریال</div></div>').join("")}$("listContent").innerHTML=html||'<div class="card muted">اطلاعاتی برای نمایش وجود ندارد.</div>'}
-$("loginBtn").onclick=login;$("password").onkeydown=e=>{if(e.key==="Enter")login()};$("refreshAvg").onclick=loadAverage;document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>renderList(b.dataset.view));$("logoutBtn").onclick=()=>{session=null;data=null;average=null;$("portal").classList.add("hidden");$("login").classList.remove("hidden");$("password").value="";$("conn").textContent="ورود امن"};
+initAverageMonths();$("loginBtn").onclick=login;$("password").onkeydown=e=>{if(e.key==="Enter")login()};$("refreshAvg").onclick=loadAverage;$("avgMonthSelect").onchange=loadAverage;document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>renderList(b.dataset.view));$("logoutBtn").onclick=()=>{session=null;data=null;average=null;$("portal").classList.add("hidden");$("login").classList.remove("hidden");$("password").value="";$("conn").textContent="ورود امن"};
 </script></html>
