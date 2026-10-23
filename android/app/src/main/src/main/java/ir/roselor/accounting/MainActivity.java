@@ -11,7 +11,7 @@ public class MainActivity extends Activity {
     private WebView webView;
 
     private static final String APP_URL =
-        "https://amiahhuapkqwbtcsmzal.supabase.co/functions/v1/roselor-app";
+    "https://alitoorabi-maker.github.io/roselor-accounting/?v=8";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
