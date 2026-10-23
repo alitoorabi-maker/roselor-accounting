@@ -1,0 +1,16 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'ir.roselor.accounting'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'ir.roselor.accounting'
+        minSdk 23
+        targetSdk 28
+        versionCode 1
+        versionName '1.0.0'
+    }
+}
