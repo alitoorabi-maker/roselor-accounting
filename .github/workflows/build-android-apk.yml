@@ -26,7 +26,7 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
-          packages: 'platform-tools'v3
+          packages: 'platform-tools'
 
       - name: Accept Android SDK licenses
         shell: bash
