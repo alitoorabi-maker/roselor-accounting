@@ -1,0 +1,23 @@
+
+{
+  "id": "./",
+  "name": "رز لر | دستیار حسابداری",
+  "short_name": "رز لر",
+  "description": "دستیار حسابداری گلخانه‌های رز لر",
+  "lang": "fa",
+  "dir": "rtl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#00160f",
+  "theme_color": "#0b2118",
+  "icons": [
+    {
+      "src": "./roselor-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
