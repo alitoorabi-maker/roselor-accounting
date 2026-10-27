@@ -441,20 +441,20 @@ E("vendorForm")?.addEventListener("submit",async ev=>{ev.preventDefault();if(!ca
  #invoices .invoice-filters .wide{grid-column:auto!important;}
  #invoices .invoice-bottom{grid-template-columns:1fr 1fr!important;padding:10px!important;}
 }
-/* Final mobile override: remove the legacy 570px minimum width that caused invoice cards to spill off-screen. */
+/* Mobile invoice layout: preserve the original five-column row while keeping the whole row inside the screen. */
 @media(max-width:680px){
  #invoiceListScroll{width:100%!important;max-width:100%!important;overflow-x:hidden!important;}
  #invoices #invoiceEditList{width:100%!important;max-width:100%!important;min-width:0!important;}
- #invoices #invoiceEditList .invoice-row{box-sizing:border-box!important;width:100%!important;max-width:100%!important;min-width:0!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:5px!important;padding:8px 6px!important;overflow:hidden!important;}
+ #invoices #invoiceEditList .invoice-row{box-sizing:border-box!important;width:100%!important;max-width:100%!important;min-width:0!important;grid-template-columns:minmax(0,0.8fr) minmax(0,1.05fr) minmax(0,1.05fr) minmax(0,1.2fr) minmax(0,0.75fr)!important;gap:0!important;padding:7px 2px!important;overflow:hidden!important;}
  #invoices #invoiceEditList .invoice-row>*{box-sizing:border-box!important;min-width:0!important;max-width:100%!important;}
- #invoices #invoiceEditList .invoice-actions{grid-column:1/-1!important;grid-row:auto!important;justify-content:center!important;border:0!important;border-top:1px solid #e5e7eb!important;padding:7px 0 0!important;}
- #invoices #invoiceEditList .invoice-cell{grid-column:auto!important;display:block!important;min-width:0!important;padding:4px 2px!important;border:0!important;overflow-wrap:anywhere!important;}
- #invoices #invoiceEditList .invoice-cell.customer{grid-column:1/-1!important;}
- #invoices #invoiceEditList .invoice-cell.number{grid-column:1/-1!important;display:flex!important;justify-content:space-between!important;align-items:center!important;gap:6px!important;}
- #invoices #invoiceEditList .invoice-main{font-size:12px!important;overflow-wrap:anywhere!important;word-break:break-word!important;}
- #invoices #invoiceEditList .invoice-sub{font-size:10px!important;overflow-wrap:anywhere!important;}
-}
-</style>
+ #invoices #invoiceEditList .invoice-actions{grid-column:auto!important;grid-row:auto!important;display:flex!important;flex-direction:column!important;justify-content:center!important;gap:3px!important;padding:0 2px!important;border-left:1px solid #e5e7eb!important;border-top:0!important;}
+ #invoices #invoiceEditList .invoice-action{width:24px!important;height:30px!important;min-width:0!important;font-size:13px!important;}
+ #invoices #invoiceEditList .invoice-cell{grid-column:auto!important;display:block!important;min-width:0!important;padding:4px 1px!important;border:0!important;border-left:1px solid #e8eaee!important;overflow-wrap:anywhere!important;text-align:center!important;}
+ #invoices #invoiceEditList .invoice-cell.customer,#invoices #invoiceEditList .invoice-cell.number{grid-column:auto!important;display:block!important;}
+ #invoices #invoiceEditList .invoice-main{font-size:clamp(9px,2.6vw,12px)!important;line-height:1.45!important;overflow-wrap:anywhere!important;word-break:break-word!important;}
+ #invoices #invoiceEditList .invoice-sub{font-size:clamp(8px,2.2vw,10px)!important;line-height:1.4!important;overflow-wrap:anywhere!important;}
+ #invoices #invoiceEditList .invoice-greenhouse{padding:2px 3px!important;font-size:9px!important;white-space:normal!important;}
+}</style>
 
 <script>
 /* Register the Roselor PWA shell; account data stays network-only. */
