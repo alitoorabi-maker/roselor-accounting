@@ -1,12 +1,12 @@
 /* Roselor PWA service worker.
  * Cache only the static app shell. Never cache Supabase/API responses or user data.
  */
-const CACHE_NAME = "roselor-shell-v3";
+const CACHE_NAME = "roselor-shell-v4";
 const SHELL_URLS = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
-  "./icons/original-logo/roselor-icon-192.png?v=2"
+  "./icons/original-logo/roselor-icon-192.png?v=3"
 ];
 
 self.addEventListener("install", event => {
