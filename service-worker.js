@@ -1,0 +1,54 @@
+/* Roselor PWA service worker.
+ * Cache only the static app shell. Never cache Supabase/API responses or user data.
+ */
+const CACHE_NAME = "roselor-shell-v1";
+const SHELL_URLS = [
+  "./",
+  "./index.html",
+  "./manifest.webmanifest",
+  "./roselor-icon.svg"
+];
+
+self.addEventListener("install", event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(SHELL_URLS))
+      .then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener("activate", event => {
+  event.waitUntil((async () => {
+    const names = await caches.keys();
+    await Promise.all(names.filter(name => name.startsWith("roselor-shell-") && name !== CACHE_NAME)
+      .map(name => caches.delete(name)));
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener("fetch", event => {
+  const request = event.request;
+  const url = new URL(request.url);
+
+  // Do not intercept writes, cross-origin requests, or API/data requests.
+  if (request.method !== "GET" || url.origin !== self.location.origin) return;
+  if (/supabase|\/rest\/v1\/|\/auth\/v1\/|\/functions\/v1\//i.test(url.href)) return;
+
+  // Cache only known static shell files; all other requests use the network.
+  const allowed = new Set(SHELL_URLS.map(path => new URL(path, self.registration.scope).href));
+  if (!allowed.has(url.href)) return;
+
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(request);
+    if (cached) {
+      fetch(request).then(response => {
+        if (response && response.ok) cache.put(request, response.clone());
+      }).catch(() => {});
+      return cached;
+    }
+    const response = await fetch(request);
+    if (response && response.ok) await cache.put(request, response.clone());
+    return response;
+  })());
+});
