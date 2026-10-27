@@ -31,7 +31,7 @@ body.read-only-user #shipmentForm,body.read-only-user #cashForm{display:none!imp
 
 #vendors .vendor-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid rgba(197,163,74,.2)}#vendors .vendor-row:last-child{border-bottom:0}#vendors .vendor-name{font-weight:700;color:var(--gold,#d7b85b)}#vendors .vendor-meta{font-size:12px;opacity:.8;margin-top:4px;line-height:1.8}
 </style>
-<!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b2118"><title>رز لر | دستیار حسابداری</title>
+<!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b2118"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="رز لر"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./roselor-icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="./roselor-icon.svg"><title>رز لر | دستیار حسابداری</title>
 <style>
 :root{--g:#d8b76b;--t:#f4f5ee;--m:#a9bcb0;--l:#2b4b39}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#173b2b,#071710 60%);color:var(--t);font:15px/1.8 Tahoma,Arial,sans-serif}.shell{max-width:980px;margin:auto;padding:14px}.top,.head{display:flex;justify-content:space-between;align-items:center;gap:10px}.brand{display:flex;align-items:center;gap:12px}.logo{width:58px;height:58px;flex:0 0 58px;border:1px solid var(--g);border-radius:50%;overflow:hidden;display:block;background:#071710;box-shadow:0 0 0 3px #173b2b,0 0 18px #d8b76b22}.logo img{display:block;width:100%;height:100%;object-fit:cover}.brand h1{font-size:21px;margin:0;color:#f1dca3}.brand p,.muted,.meta{color:var(--m)}.brand p,.meta,.small{font-size:12px}.panel{background:linear-gradient(145deg,#112c20,#0d2118);border:1px solid var(--l);border-radius:20px;padding:16px;margin:13px 0}.login{max-width:440px;margin:7vh auto}.field{display:grid;gap:5px;margin:10px 0}.field input,.field select,.field textarea,.cmd{width:100%;border:1px solid #345442;background:#071a12;color:var(--t);border-radius:12px;padding:12px;font:inherit}.jalali-date-wrap{position:relative;display:flex;align-items:center}.jalali-date-text{min-height:54px;cursor:pointer;padding-left:48px!important;direction:rtl}.date-open{position:absolute;left:8px;top:50%;transform:translateY(-50%);border:1px solid #826f3c;border-radius:9px;background:#10291d;color:#f1dca3;padding:5px 10px;font-size:20px;cursor:pointer}.native-date-picker{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:0;bottom:0}.btn{border:1px solid transparent;border-radius:12px;padding:10px 14px;color:#08170f;background:linear-gradient(135deg,#f1dca3,var(--g));font-weight:bold}.ghost{background:transparent;color:var(--m);border-color:var(--l)}.hidden{display:none!important}.status{border-radius:12px;padding:10px;margin:10px 0;white-space:pre-wrap;overflow-wrap:anywhere}.info{background:#132a20;border:1px solid var(--l)}.ok{background:#102e20;color:#9fe0b2;border:1px solid #2b6743}.err{background:#321b19;color:#ffc1ba;border:1px solid #78403a}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.stat,.card{background:#0b2118;border:1px solid var(--l);border-radius:15px;padding:13px;margin:9px 0}
 /* Roselor shipment cards: deep green + gold, bouquet photo, mobile-first */
@@ -442,6 +442,15 @@ E("vendorForm")?.addEventListener("submit",async ev=>{ev.preventDefault();if(!ca
 }
 </style>
 
+<script>
+/* Register the Roselor PWA shell; account data stays network-only. */
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("./service-worker.js", { scope: "./" })
+      .catch(function (error) { console.warn("Roselor PWA service worker registration failed:", error); });
+  });
+}
+</script>
 </body></html>
 <style>
 /* Compact month selector belongs to the bottom navigation button */
