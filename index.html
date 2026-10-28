@@ -352,6 +352,7 @@ E("harvestForm").addEventListener("submit",async ev=>{
   const result=await api("save_daily_harvest",{harvest_date:date,greenhouse,quantity_bundles:bundles,notes});
   if(result?.ok!==true||result?.verified!==true||Number(result.harvest?.quantity_bundles)!==bundles)throw Error(result?.error||"ثبت برداشت از پایگاه داده تأیید نشد.");
   say("harvestMsg","برداشت روزانه در سوپا ثبت و تأیید شد.","ok");
+  E("harvestFrom").value=E("harvestDate").value;E("harvestTo").value=E("harvestDate").value;
   await loadHarvest();
  }catch(e){say("harvestMsg","ثبت ناموفق بود: "+e.message,"err")}finally{b.disabled=false}
 });
