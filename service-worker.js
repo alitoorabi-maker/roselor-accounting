@@ -52,3 +52,37 @@ self.addEventListener("fetch", event => {
     return response;
   })());
 });
+
+self.addEventListener("push", event => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; }
+  catch (_) { data = { body: event.data ? event.data.text() : "" }; }
+  const title = String(data.title || "رز لر");
+  const options = {
+    body: String(data.body || "اعلان جدید دارید."),
+    icon: "./icons/original-logo/roselor-icon-192.png",
+    badge: "./icons/original-logo/roselor-icon-192.png",
+    data: { url: typeof data.url === "string" ? data.url : "./" },
+    tag: typeof data.tag === "string" ? data.tag : "roselor-notification"
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  let target = new URL("./", self.registration.scope).href;
+  try {
+    const candidate = new URL(String(event.notification.data?.url || "./"), self.registration.scope);
+    if (candidate.origin === self.location.origin) target = candidate.href;
+  } catch (_) {}
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const client of windows) {
+      if (new URL(client.url).origin === self.location.origin) {
+        await client.navigate(target);
+        return client.focus();
+      }
+    }
+    return self.clients.openWindow(target);
+  })());
+});
