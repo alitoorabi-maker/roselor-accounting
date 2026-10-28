@@ -91,10 +91,10 @@ function monthRangeFor(anchor){
 function initAverageMonths(){
   const select=$("avgMonthSelect");
   if(!select)return;
-  const now=new Date(),current=monthRangeFor(now);
+  const current=monthRangeFor(new Date());
   select.innerHTML="";
+  let anchor=new Date();
   for(let offset=0;offset<12;offset++){
-    const anchor=offset===0?new Date():new Date(Date.parse(select.options[select.options.length-1]?.dataset.start||current.start)-86400000);
     const range=monthRangeFor(anchor);
     const option=document.createElement("option");
     option.value=range.label;
@@ -102,6 +102,7 @@ function initAverageMonths(){
     option.dataset.start=range.start;
     option.dataset.end=range.end;
     select.appendChild(option);
+    anchor=new Date(Date.parse(range.start)-86400000);
   }
   select.value=current.label;
 }
@@ -113,7 +114,7 @@ function renderLeaderboard(rows,month,days){
   const top=list[0],max=Math.max(1,Number(top.average_monthly_rial||0));
   const amount=x=>fmt(x)+" ریال";
   let html='<div class="champion"><div class="champion-crown">♛</div><div><div class="champion-label">برترین همکار ماه 🏆</div><div class="champion-name">'+esc(top.alias)+'</div><div class="sub">رتبه اول · مبلغ خرید ماهانه</div></div><div class="champion-value">'+amount(top.average_monthly_rial)+'<div class="champion-unit">در ماه</div></div></div><div class="leader-list">';
-  html+=list.map((x,i)=>'<div class="leader-row '+(x.is_you?'is-you':'')+'"><div class="leader-rank">'+(i===0?'♛':fmt(x.rank||i+1))+'</div><div><div class="leader-name">'+esc(x.alias)+(x.is_you?'<span class="leader-you">حساب شما</span>':'')+'</div><div class="leader-bar"><span style="width:'+Math.max(0,Math.min(100,Number(x.average_monthly_rial||0)/max*100))+'%"></span></div></div><div class="leader-amount"><strong>'+amount(x.average_daily_rial)+'</strong><small>مبلغ ماهانه</small></div></div>').join("");
+  html+=list.map((x,i)=>'<div class="leader-row '+(x.is_you?'is-you':'')+'"><div class="leader-rank">'+(i===0?'♛':fmt(x.rank||i+1))+'</div><div><div class="leader-name">'+esc(x.alias)+(x.is_you?'<span class="leader-you">حساب شما</span>':'')+'</div><div class="leader-bar"><span style="width:'+Math.max(0,Math.min(100,Number(x.average_monthly_rial||0)/max*100))+'%"></span></div></div><div class="leader-amount"><strong>'+amount(x.average_monthly_rial)+'</strong><small>مبلغ ماهانه</small></div></div>').join("");
   html+='</div>';
   root.innerHTML=html;
 }
@@ -173,5 +174,5 @@ const balanceCards=greenhouses.map(g=>{
 }).join("");
 html=balanceCards+allRows.map(x=>'<div class="card"><div class="row"><strong>'+esc(x.description||x.source_type||"رویداد حسابداری")+'</strong><span class="pill">'+(x.greenhouse==="azna"?"ازنا":x.greenhouse==="khorramabad"?"خرم‌آباد":"مشترک")+'</span></div><div class="sub">'+date(x.event_at)+' · '+esc(x.source_type||"")+'</div><div>بدهکار: '+fmt(x.debit_rial)+' · بستانکار: '+fmt(x.credit_rial)+'</div><div class="value">مانده پس از رویداد: '+fmt(x.balance_after_rial)+' ریال</div></div>').join("");
 }}$("listContent").innerHTML=html||'<div class="card muted">اطلاعاتی برای نمایش وجود ندارد.</div>'}
-initAverageMonths();$("loginBtn").onclick=login;$("password").onkeydown=e=>{if(e.key==="Enter")login()};$("refreshAvg").onclick=loadAverage;$("avgMonthSelect").onchange=loadAverage;document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>renderList(b.dataset.view));$("logoutBtn").onclick=()=>{session=null;data=null;average=null;$("portal").classList.add("hidden");$("login").classList.remove("hidden");$("password").value="";$("conn").textContent="ورود امن"};
+try{initAverageMonths();}catch(e){console.error("ماه‌های پنل:",e);status("loginMsg","خطا در آماده‌سازی پنل؛ صفحه را دوباره بارگذاری کنید.","error");} $("loginBtn").type="button";$("loginBtn").onclick=login;$("password").onkeydown=e=>{if(e.key==="Enter")login()};$("refreshAvg").onclick=loadAverage;$("avgMonthSelect").onchange=loadAverage;document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>renderList(b.dataset.view));$("logoutBtn").onclick=()=>{session=null;data=null;average=null;$("portal").classList.add("hidden");$("login").classList.remove("hidden");$("password").value="";$("conn").textContent="ورود امن"};
 </script></html>
