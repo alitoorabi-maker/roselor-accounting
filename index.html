@@ -305,8 +305,10 @@ async function loadS(){try{ships=(await api("shipments_without_invoice")).shipme
  const greenhouseFilter=E("shipmentGreenhouseFilter")?.value||"all";
  const customerFilter=E("shipmentCustomerFilter")?.value||"all";
  const visibleShips=ships.filter(x=>{if(greenhouseFilter!=="all"&&String(x.greenhouse||"").toLowerCase()!==greenhouseFilter)return false;const cid=String(x.customer_id||x.customer_name||"");if(customerFilter!=="all"&&cid!==customerFilter)return false;return true});
- if(!visibleShips.length){E("shipList").innerHTML=empty("با این فیلترها باری پیدا نشد.");return}
- E("shipList").innerHTML=visibleShips.map(x=>{
+ const totalBundles=visibleShips.reduce((sum,x)=>sum+Number(x.quantity_bundles||0),0);
+ const summary='<div class="card" style="display:flex;justify-content:space-around;align-items:center;gap:12px;flex-wrap:wrap;border:1px solid #c6a451;background:linear-gradient(135deg,#0d2a1d,#061b12);margin-bottom:12px"><div style="text-align:center"><div class="meta">تعداد بارهای بیرون</div><strong style="font-size:25px;color:#f5d991">'+new Intl.NumberFormat("fa-IR").format(visibleShips.length)+'</strong></div><div style="text-align:center"><div class="meta">مجموع دسته‌ها</div><strong style="font-size:25px;color:#f5d991">'+new Intl.NumberFormat("fa-IR").format(totalBundles)+'</strong></div></div>';
+ if(!visibleShips.length){E("shipList").innerHTML=summary+empty("با این فیلترها باری پیدا نشد.");return}
+ E("shipList").innerHTML=summary+visibleShips.map(x=>{
   const greenhouse=x.greenhouse==="azna"?"ازنا":x.greenhouse==="khorramabad"?"خرم‌آباد":"نامشخص";
   const invoice= x.invoice_amount_rial!=null
    ? '<div class="shipment-amount"><span class="meta">مبلغ فاکتور ثبت‌شده</span><br><strong>'+fmt(x.invoice_amount_rial)+'</strong></div>'
