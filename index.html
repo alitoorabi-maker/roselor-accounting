@@ -380,39 +380,30 @@ function renderHarvest(){
 }
 
 async function loadHomeProductionStats(){
- const todayJ=await harvestToday(),parts=todayJ.split("/"),jy=Number(parts[0]),jm=Number(parts[1]),jd=Number(parts[2]);
+ const todayJ=await harvestToday(),parts=todayJ.split("/"),jd=Number(parts[2]);
  const todayG=jalaliInputToGregorian(todayJ),monthStartG=jalaliInputToGregorian(parts[0]+"/"+parts[1]+"/01");
  if(!todayG||!monthStartG)return;
  try{
   const result=await api("daily_harvest_summary",{date_from:monthStartG,date_to:todayG});
   if(result?.ok!==true||!Array.isArray(result.harvests))throw Error(result?.error||"آمار برداشت دریافت نشد");
-  const rows=result.harvests, todayRows=rows.filter(x=>String(x.harvest_date)===todayG);
+  const rows=result.harvests,todayRows=rows.filter(x=>String(x.harvest_date)===todayG);
   const totalFor=(list,greenhouse,field)=>list.filter(x=>x.greenhouse===greenhouse).reduce((a,x)=>a+Number(x[field]||0),0);
-  const todayKh=totalFor(todayRows,"khorramabad","quantity_bundles"),todayAz=totalFor(todayRows,"azna","quantity_bundles");
-  const coldKh=totalFor(rows,"khorramabad","remaining_bundles"),coldAz=totalFor(rows,"azna","remaining_bundles");
-  if(E("homeHarvestTodayKh"))E("homeHarvestTodayKh").textContent=harvestFmt(todayKh);
-  if(E("homeHarvestTodayAz"))E("homeHarvestTodayAz").textContent=harvestFmt(todayAz);
-  if(E("homeColdStorageKh"))E("homeColdStorageKh").textContent=harvestFmt(coldKh);
-  if(E("homeColdStorageAz"))E("homeColdStorageAz").textContent=harvestFmt(coldAz);
-  const selected=E("avgMonth")?.value;
-  let dateFrom=monthStartG,dateTo=todayG,days=jd;
-  if(selected){
-   const [sy,sm]=selected.split("-").map(Number),ey=sm===12?sy+1:sy,em=sm===12?1:sm+1;
-   const first=jalaliToGregorian(sy,sm,1),nextFirst=jalaliToGregorian(ey,em,1);
-   const toIso=d=>String(d.year).padStart(4,"0")+"-"+String(d.month).padStart(2,"0")+"-"+String(d.day).padStart(2,"0");
-   dateFrom=toIso(first);
-   const lastDay=new Date(Date.UTC(nextFirst.year,nextFirst.month-1,nextFirst.day)-86400000);
-   const endOfMonth=toIso({year:lastDay.getUTCFullYear(),month:lastDay.getUTCMonth()+1,day:lastDay.getUTCDate()});
-   dateTo=endOfMonth;
-   days=Math.round((Date.parse(dateTo+"T00:00:00Z")-Date.parse(dateFrom+"T00:00:00Z"))/86400000)+1;
-  }
+  if(E("homeHarvestTodayKh"))E("homeHarvestTodayKh").textContent=harvestFmt(totalFor(todayRows,"khorramabad","quantity_bundles"));
+  if(E("homeHarvestTodayAz"))E("homeHarvestTodayAz").textContent=harvestFmt(totalFor(todayRows,"azna","quantity_bundles"));
+  if(E("homeColdStorageKh"))E("homeColdStorageKh").textContent=harvestFmt(totalFor(rows,"khorramabad","remaining_bundles"));
+  if(E("homeColdStorageAz"))E("homeColdStorageAz").textContent=harvestFmt(totalFor(rows,"azna","remaining_bundles"));
+  const range=monthRange();
+  const dateFrom=range.month_start.slice(0,10),nextMonthFirst=range.month_end.slice(0,10);
+  const prevDay=new Date(Date.parse(nextMonthFirst+"T00:00:00Z")-86400000);
+  const dateTo=prevDay.getUTCFullYear()+"-"+String(prevDay.getUTCMonth()+1).padStart(2,"0")+"-"+String(prevDay.getUTCDate()).padStart(2,"0");
+  const days=Math.round((Date.parse(dateTo+"T00:00:00Z")-Date.parse(dateFrom+"T00:00:00Z"))/86400000)+1;
   const shipped=await api("monthly_shipment_summary",{date_from:dateFrom,date_to:dateTo});
   if(shipped?.ok!==true||!shipped.totals)throw Error(shipped?.error||"آمار خروج بار دریافت نشد");
   const averageKh=days?Number(shipped.totals.khorramabad||0)/days:0;
   const averageAz=days?Number(shipped.totals.azna||0)/days:0;
   if(E("homeHarvestAverageKh"))E("homeHarvestAverageKh").textContent=harvestFmt(Math.round(averageKh));
   if(E("homeHarvestAverageAz"))E("homeHarvestAverageAz").textContent=harvestFmt(Math.round(averageAz));
- }catch(e){console.warn("آمار کارت‌های برداشت دریافت نشد:",e)}
+ }catch(e){console.warn("آمار کارت‌های برداشت دریافت نشد:",e);if(E("avgMsg"))say("avgMsg","میانگین برداشت به‌روزرسانی نشد: "+e.message,"err")}
 }
 async function loadHarvest(){
  try{
