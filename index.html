@@ -45,6 +45,32 @@ body.read-only-user #shipmentForm,body.read-only-user #cashForm,body.read-only-u
 .home-production-stat{min-width:0;text-align:center;padding:13px 8px 12px;border:1.5px solid #c5a451;border-radius:20px;background:linear-gradient(155deg,#0b3525,#031c13);box-shadow:inset 0 0 0 1px #d8b76b22,0 5px 16px #0002;color:#f4d274;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .home-stat-icon{font-size:29px;line-height:1.15;margin-bottom:7px;color:#f4d274}.home-stat-title{font-size:clamp(10px,2.6vw,15px);color:#f6f3e8;line-height:1.4;min-height:2.6em;display:flex;align-items:center;justify-content:center}.home-production-stat strong{font-size:clamp(19px,4.8vw,29px);line-height:1.25;margin-top:4px;overflow-wrap:anywhere}.home-production-stat small{font-size:11px;color:#d6d9d1;margin-top:3px}
 @media(min-width:700px){.home-production-stats{gap:16px;margin:18px 0 22px}.home-production-stat{padding:18px}.home-stat-icon{font-size:34px}}
+
+/* Compact, consistent greenhouse rows inside the three lower summary cards */
+.home-production-stat .avg-greenhouse{
+  box-sizing:border-box;width:100%;min-width:0;min-height:0;display:flex;
+  flex-direction:row;align-items:center;justify-content:space-between;gap:5px;
+  margin:5px 0;padding:9px 8px;border:1.5px solid #345442;border-radius:13px;
+  background:linear-gradient(140deg,#06281b,#001b12);text-align:right;
+}
+.home-production-stat .avg-greenhouse span{
+  min-width:0;font-size:clamp(10px,2.5vw,13px);line-height:1.4;color:#e6d28d;
+  overflow-wrap:anywhere;
+}
+.home-production-stat .avg-greenhouse span:before{content:none!important;display:none!important}
+.home-production-stat .avg-greenhouse strong{
+  flex:0 0 auto;font-size:clamp(15px,3.8vw,20px);line-height:1.3;margin:0;
+  color:#f5d991;white-space:nowrap;
+}
+.home-production-stat .avg-greenhouse strong:after{content:none!important;display:none!important}
+.home-production-stat>small{font-size:11px;color:#d6d9d1;margin-top:5px}
+@media(max-width:620px){
+ .home-production-stat{padding:10px 7px;border-radius:18px}
+ .home-production-stat .avg-greenhouse{padding:8px 6px;margin:4px 0;gap:3px;border-radius:12px}
+ .home-production-stat .avg-greenhouse span{font-size:10px}
+ .home-production-stat .avg-greenhouse strong{font-size:15px}
+}
+
 </style>
 <!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b2118"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="رز لر"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icons/original-logo/roselor-icon-192.png?v=3" sizes="192x192" type="image/png"><link rel="apple-touch-icon" sizes="180x180" href="./icons/original-logo/roselor-icon-192.png?v=3"><title>رز لر | دستیار حسابداری</title>
 <style>
