@@ -358,7 +358,7 @@ E("harvestForm").addEventListener("submit",async ev=>{
 });
 E("reloadHarvest").onclick=loadHarvest;E("applyHarvestFilters").onclick=loadHarvest;E("harvestFilterGreenhouse").addEventListener("change",renderHarvest);
 ["harvestDate","harvestFrom","harvestTo"].forEach(id=>attachJalaliPicker(id));
-function loadS(){try{ships=(await api("shipments_without_invoice")).shipments||[];fillShipmentCustomerFilter();renderS()}catch(e){E("shipList").innerHTML=empty(e.message)}}function renderS(){
+async function loadS(){try{ships=(await api("shipments_without_invoice")).shipments||[];fillShipmentCustomerFilter();renderS()}catch(e){E("shipList").innerHTML=empty(e.message)}}function renderS(){
  const greenhouseFilter=E("shipmentGreenhouseFilter")?.value||"all";
  const customerFilter=E("shipmentCustomerFilter")?.value||"all";
  const visibleShips=ships.filter(x=>{if(greenhouseFilter!=="all"&&String(x.greenhouse||"").toLowerCase()!==greenhouseFilter)return false;const cid=String(x.customer_id||x.customer_name||"");if(customerFilter!=="all"&&cid!==customerFilter)return false;return true});
