@@ -62,7 +62,7 @@ async function enablePortalPush(){
   const expectedKey=decode(info.publicKey);let sub=await reg.pushManager.getSubscription();
   const currentKey=sub?.options?.applicationServerKey?new Uint8Array(sub.options.applicationServerKey):null;
   const keyMatches=!!currentKey&&currentKey.length===expectedKey.length&&currentKey.every((v,i)=>v===expectedKey[i]);
-  if(sub&&!keyMatches){await sub.unsubscribe();sub=null;}
+  const isAppleEndpoint=!!sub&&/^https:\/\/web\.push\.apple\.com\//i.test(sub.endpoint||"");if(sub&&(!keyMatches||isAppleEndpoint)){await sub.unsubscribe();sub=null;}
   if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:expectedKey});
   const result=await req("/functions/v1/roselor-push",{method:"POST",body:JSON.stringify({action:"subscribe",customer_id:String(data.customer.id),subscription:sub.toJSON()})});
   if(!result.ok)throw Error(result.error||"ثبت اشتراک تأیید نشد.");
