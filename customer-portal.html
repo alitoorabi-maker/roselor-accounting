@@ -59,8 +59,11 @@ async function enablePortalPush(){
   const info=await req("/functions/v1/roselor-push",{method:"POST",body:JSON.stringify({action:"status"})});
   if(!info.publicKey)throw Error("کلید عمومی اعلان دریافت نشد.");
   const decode=s=>{const pad="=".repeat((4-s.length%4)%4);return Uint8Array.from(atob((s+pad).replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0));};
-  let sub=await reg.pushManager.getSubscription();
-  if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:decode(info.publicKey)});
+  const expectedKey=decode(info.publicKey);let sub=await reg.pushManager.getSubscription();
+  const currentKey=sub?.options?.applicationServerKey?new Uint8Array(sub.options.applicationServerKey):null;
+  const keyMatches=!!currentKey&&currentKey.length===expectedKey.length&&currentKey.every((v,i)=>v===expectedKey[i]);
+  if(sub&&!keyMatches){await sub.unsubscribe();sub=null;}
+  if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:expectedKey});
   const result=await req("/functions/v1/roselor-push",{method:"POST",body:JSON.stringify({action:"subscribe",customer_id:String(data.customer.id),subscription:sub.toJSON()})});
   if(!result.ok)throw Error(result.error||"ثبت اشتراک تأیید نشد.");
   b.textContent="اعلان‌ها فعال است ✓";status("loginMsg","اعلان‌های حساب شما فعال شد.","success");
