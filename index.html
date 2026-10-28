@@ -77,20 +77,21 @@ html,body{min-height:100%;background:#06291f!important}
 body{position:relative!important;background:#06291f!important}
 body::before{content:none!important;display:none!important}
 .roselor-banner-header{
- display:block!important;position:relative!important;z-index:1!important;
- width:calc(100% + 28px)!important;height:clamp(250px,58vw,380px)!important;
- margin:-14px -14px 16px!important;padding:0!important;
- border:0!important;border-radius:0!important;box-shadow:none!important;overflow:hidden!important;
- background:url("https://alitoorabi-maker.github.io/roselor-accounting/roselor-banner.jpg") center top/100% auto no-repeat!important;
+ display:block!important;position:absolute!important;top:0!important;left:50%!important;transform:translateX(-50%)!important;z-index:0!important;
+ width:100vw!important;height:clamp(430px,112vw,590px)!important;
+ margin:0!important;padding:0!important;
+ border:0!important;border-radius:0!important;box-shadow:none!important;overflow:hidden!important;pointer-events:none!important;
+ background:url("https://alitoorabi-maker.github.io/roselor-accounting/roselor-banner.jpg") center top/auto 100% no-repeat!important;
 }
-.shell{position:relative!important;z-index:1!important;background:transparent!important;padding-top:1px!important}
-.login.panel{position:relative!important;z-index:2!important;margin:16px auto 24px!important;background:rgba(7,35,24,.48)!important;backdrop-filter:blur(10px) saturate(125%)!important;-webkit-backdrop-filter:blur(10px) saturate(125%)!important;border:1px solid rgba(232,203,130,.72)!important;color:#fff9e8!important;box-shadow:0 12px 36px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.12)!important}
+.shell{position:relative!important;z-index:1!important;background:transparent!important;padding-top:clamp(230px,62vw,320px)!important}
+.login.panel{position:relative!important;z-index:2!important;margin:0 auto 24px!important;background:rgba(7,35,24,.48)!important;backdrop-filter:blur(10px) saturate(125%)!important;-webkit-backdrop-filter:blur(10px) saturate(125%)!important;border:1px solid rgba(232,203,130,.72)!important;color:#fff9e8!important;box-shadow:0 12px 36px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.12)!important}
 .login.panel .muted{color:#e0e9e2!important}
 .login.panel input{background:rgba(3,20,14,.48)!important;color:#fff9e8!important;border-color:rgba(193,218,197,.58)!important;backdrop-filter:blur(5px)!important;-webkit-backdrop-filter:blur(5px)!important}
 .login.panel button{opacity:1!important}
 @media(max-width:480px){
- .roselor-banner-header{width:calc(100% + 16px)!important;height:clamp(250px,58vw,320px)!important;margin:-14px -8px 12px!important;background-position:center top!important}
- .login.panel{margin:12px 0 24px!important}
+ .roselor-banner-header{width:100vw!important;height:clamp(430px,112vw,520px)!important;background-position:center top!important;background-size:auto 100%!important}
+ .shell{padding-top:clamp(245px,66vw,300px)!important}
+ .login.panel{margin:0 0 24px!important}
 }
 </style>
 <!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b2118"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="رز لر"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icons/original-logo/roselor-icon-192.png?v=3" sizes="192x192" type="image/png"><link rel="apple-touch-icon" sizes="180x180" href="./icons/original-logo/roselor-icon-192.png?v=3"><title>رز لر | دستیار حسابداری</title>
