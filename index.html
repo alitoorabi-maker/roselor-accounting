@@ -93,6 +93,26 @@ body::before{content:none!important;display:none!important}
  .shell{padding-top:0!important}
  .login.panel{margin:0 0 24px!important}
 }
+
+/* Responsive driver bucket ledger: keep tables readable on narrow phones */
+#buckets #returnedBucketsList{width:100%;min-width:0;overflow:hidden}
+#buckets #returnedBucketsList h4{font-size:15px;line-height:1.7;margin:16px 0 9px;color:var(--gold,#d7b85b)}
+#buckets #returnedBucketsList .table-wrap{display:block;width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;border:1px solid rgba(201,166,75,.28);border-radius:12px;margin:8px 0 14px;overscroll-behavior-x:contain}
+#buckets #returnedBucketsList table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;font-size:13px;line-height:1.6;direction:rtl}
+#buckets #returnedBucketsList th,#buckets #returnedBucketsList td{padding:10px 12px;text-align:right;vertical-align:middle;border-bottom:1px solid rgba(201,166,75,.16);white-space:nowrap}
+#buckets #returnedBucketsList th{background:#123b2c;color:#f0d785;font-weight:750}
+#buckets #returnedBucketsList tbody tr:nth-child(even){background:rgba(255,255,255,.025)}
+#buckets #returnedBucketsList tbody tr:last-child td{border-bottom:0}
+#buckets #returnedBucketsList td strong{color:#f0d785;font-size:14px}
+#buckets #returnedBucketsList .table-wrap::-webkit-scrollbar{height:5px}
+#buckets #returnedBucketsList .table-wrap::-webkit-scrollbar-thumb{background:#c9a64b;border-radius:99px}
+#buckets #returnedBucketsList .table-wrap:after{content:"برای دیدن ستون‌های بیشتر، جدول را افقی بکشید";display:block;padding:5px 10px;font-size:11px;color:#b8c9c0;border-top:1px solid rgba(201,166,75,.15);white-space:normal}
+@media(max-width:620px){
+ #buckets #returnedBucketsList{font-size:13px}
+ #buckets #returnedBucketsList .table-wrap{margin-inline:-2px;width:calc(100% + 4px)}
+ #buckets #returnedBucketsList th,#buckets #returnedBucketsList td{padding:9px 10px;font-size:12px}
+ #buckets #returnedBucketsList h4{font-size:14px}
+}
 </style>
 <!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b2118"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="رز لر"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icons/original-logo/roselor-icon-192.png?v=3" sizes="192x192" type="image/png"><link rel="apple-touch-icon" sizes="180x180" href="./icons/original-logo/roselor-icon-192.png?v=3"><title>رز لر | دستیار حسابداری</title>
 <style>
