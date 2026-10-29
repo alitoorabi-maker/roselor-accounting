@@ -1,7 +1,7 @@
 /* Roselor PWA service worker.
  * Cache only the static app shell. Never cache Supabase/API responses or user data.
  */
-const CACHE_NAME = "roselor-shell-v5";
+const CACHE_NAME = "roselor-shell-v6";
 const SHELL_URLS = [
   "./",
   "./index.html",
