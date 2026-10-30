@@ -1,7 +1,7 @@
 /* Roselor PWA service worker.
  * Cache only the static app shell. Never cache Supabase/API responses or user data.
  */
-const CACHE_NAME = "roselor-shell-v6";
+const CACHE_NAME = "roselor-shell-v7";
 const SHELL_URLS = [
   "./",
   "./index.html",
@@ -40,6 +40,18 @@ self.addEventListener("fetch", event => {
 
   event.respondWith((async () => {
     const cache = await caches.open(CACHE_NAME);
+    const isAppDocument = url.pathname.endsWith("/") || url.pathname.endsWith("/index.html");
+    if (isAppDocument) {
+      try {
+        const response = await fetch(request, { cache: "no-store" });
+        if (response && response.ok) await cache.put(request, response.clone());
+        return response;
+      } catch (error) {
+        const cached = await cache.match(request);
+        if (cached) return cached;
+        throw error;
+      }
+    }
     const cached = await cache.match(request);
     if (cached) {
       fetch(request).then(response => {
