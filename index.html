@@ -968,7 +968,7 @@ body.invoices-page #invoices{max-width:100vw!important;overscroll-behavior-x:non
   b.addEventListener("click",async()=>{
     const old=b.textContent;b.disabled=true;
     try{
-      if(!("serviceWorker" in navigator)||!("PushManager" in window)||!("Notification" in window))throw Error("این مرورگر اعلان وب را پشتیبانی نمی‌کند.");
+      if(!window.isSecureContext)throw Error("اتصال امن HTTPS برای اعلان فعال نیست.");if(!("serviceWorker" in navigator))throw Error("قابلیت Service Worker در محیط اجرای اپ در دسترس نیست.");if(!("PushManager" in window))throw Error("قابلیت Push API در محیط اجرای اپ در دسترس نیست.");if(!("Notification" in window))throw Error("قابلیت Notification API در محیط اجرای اپ در دسترس نیست.");
       if(!sess||!sess.access_token||!sess.user||!sess.user.id)throw Error("ابتدا وارد حساب رز لر شو.");
       if(Notification.permission==="denied")throw Error("اجازه اعلان برای این سایت در تنظیمات مرورگر مسدود شده است.");
       const permission=await Notification.requestPermission();
