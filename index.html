@@ -1052,11 +1052,12 @@ window.notifyRoselorEvent=async function(kind,customerId){
  show();
 })();
 </script>
-/* Mobile market-sales average: calm two-column customer cards */
+<style>
+/* Mobile market-sales average: one horizontal swipe row */
 @media(max-width:620px){
-  .average-panel .avg-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important;}
-  .average-panel .avg-person{min-height:0!important;padding:9px 7px!important;border-radius:17px!important;}
-  .average-panel .avg-person h3{font-size:15px!important;line-height:1.35;min-height:2.7em;justify-content:center!important;text-align:center;margin:0 0 6px!important;}
+  .average-panel .avg-grid{display:flex!important;flex-wrap:nowrap!important;gap:9px!important;overflow-x:auto!important;overflow-y:hidden!important;scroll-snap-type:x mandatory!important;-webkit-overflow-scrolling:touch!important;padding:2px 1px 8px!important;}
+  .average-panel .avg-person{flex:0 0 72%!important;width:72%!important;min-width:72%!important;min-height:0!important;padding:9px 7px!important;border-radius:17px!important;scroll-snap-align:start!important;}
+  .average-panel .avg-person h3{font-size:15px!important;line-height:1.35;min-height:0!important;justify-content:center!important;text-align:center;margin:0 0 6px!important;}
   .average-panel .person-icon{display:none!important;}
   .average-panel .avg-person .avg-greenhouse{min-height:0!important;margin:4px 0!important;padding:8px 4px!important;gap:3px!important;border-radius:12px!important;}
   .average-panel .avg-person .avg-greenhouse span{font-size:10px!important;line-height:1.4!important;}
@@ -1066,3 +1067,4 @@ window.notifyRoselorEvent=async function(kind,customerId){
   .average-panel .avg-person .meta{display:none!important;}
   .average-panel .home-production-stats{display:none!important;}
 }
+</style>
