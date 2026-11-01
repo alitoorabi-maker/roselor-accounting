@@ -1068,3 +1068,26 @@ window.notifyRoselorEvent=async function(kind,customerId){
   .average-panel .home-production-stats{display:none!important;}
 }
 </style>
+
+<style>
+/* Start the mobile average-sales carousel at its RTL beginning (right side). */
+@media(max-width:620px){
+ .average-panel .avg-grid{direction:rtl!important;}
+}
+</style>
+<script>
+/* After sorting the winner cards, keep the carousel at the rightmost starting edge. */
+(function(){
+ function resetAverageCarousel(){
+  if(!window.matchMedia||!window.matchMedia("(max-width:620px)").matches)return;
+  const grid=document.querySelector(".average-panel .avg-grid");
+  if(grid)grid.scrollLeft=0;
+ }
+ document.addEventListener("DOMContentLoaded",resetAverageCarousel);
+ const grid=document.querySelector(".average-panel .avg-grid");
+ if(grid&&window.MutationObserver){
+  new MutationObserver(()=>requestAnimationFrame(resetAverageCarousel)).observe(grid,{childList:true});
+ }
+ window.addEventListener("resize",resetAverageCarousel);
+})();
+</script>
