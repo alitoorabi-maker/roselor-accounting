@@ -461,7 +461,23 @@ function isRoselorAdmin(){let m=sess?.user?.app_metadata||{};return m.accounting
 let currentAccess={is_admin:false,access:[]};
 function hasGreenhouse(gh){return !!currentAccess.is_admin||(currentAccess.access||[]).some(a=>a.greenhouse===gh)}
 function canWriteAccounting(){return !!currentAccess.is_admin||(currentAccess.access||[]).some(a=>a.role==="accountant")}
-async function applyCurrentAccess(){const d=await api("my_access");if(!d||d.ok!==true)throw Error("دریافت سطح دسترسی تأیید نشد.");currentAccess={is_admin:!!d.is_admin,access:Array.isArray(d.access)?d.access:[],section_permissions:d.section_permissions||{}};document.body.classList.toggle("can-see-azna",hasGreenhouse("azna"));document.body.classList.toggle("can-see-khorramabad",hasGreenhouse("khorramabad"));document.body.classList.toggle("read-only-user",!canWriteAccounting());document.querySelectorAll('[data-tab="cash"]').forEach(el=>el.classList.toggle("hidden",!canWriteAccounting()));E("navVendors")?.classList.toggle("hidden",!canWriteAccounting());E("navBuckets")?.classList.toggle("hidden",!canWriteAccounting());E("navInvoices")?.classList.toggle("hidden",!hasGreenhouse("azna")&&!hasGreenhouse("khorramabad"));E("navUsers")?.classList.toggle("hidden",!currentAccess.is_admin);for(const key of ["home","balances","amb","ledger","bankRecon","ship","invoices","cash","vendors","buckets"]){const permitted=currentAccess.is_admin||currentAccess.section_permissions?.[key]?.view!==false;document.querySelectorAll('[data-tab="'+key+'"]').forEach(el=>el.classList.toggle("hidden",!permitted))}E("shipmentForm")?.classList.toggle("hidden",!canWriteAccounting());let filter=E("shipmentGreenhouseFilter");if(filter){Array.from(filter.options).forEach(o=>{if(o.value==="all")o.hidden=!currentAccess.is_admin;else o.hidden=!hasGreenhouse(o.value)});if(filter.value!=="all"&&!hasGreenhouse(filter.value))filter.value=currentAccess.access[0]?.greenhouse||"khorramabad";}if(!hasGreenhouse("azna")){["avgAhmadiAz","avgRostamiAz","avgRahimiAz"].forEach(id=>{if(E(id))E(id).textContent="—"});if(E("carouselAzna"))E("carouselAzna").textContent="—"}}
+async function applyCurrentAccess(){const d=await api("my_access");if(!d||d.ok!==true)throw Error("دریافت سطح دسترسی تأیید نشد.");currentAccess={is_admin:!!d.is_admin,access:Array.isArray(d.access)?d.access:[],section_permissions:d.section_permissions||{}};document.body.classList.toggle("can-see-azna",hasGreenhouse("azna"));document.body.classList.toggle("can-see-khorramabad",hasGreenhouse("khorramabad"));document.body.classList.toggle("read-only-user",!canWriteAccounting());document.querySelectorAll('[data-tab="cash"]').forEach(el=>el.classList.toggle("hidden",!canWriteAccounting()));E("navVendors")?.classList.toggle("hidden",!canWriteAccounting());E("navBuckets")?.classList.toggle("hidden",!canWriteAccounting());E("navInvoices")?.classList.toggle("hidden",!hasGreenhouse("azna")&&!hasGreenhouse("khorramabad"));E("navUsers")?.classList.toggle("hidden",!currentAccess.is_admin);for(const key of ["home","balances","amb","ledger","bankRecon","ship","invoices","cash","vendors","buckets"]){const permitted=currentAccess.is_admin||currentAccess.section_permissions?.[key]?.view!==false;document.querySelectorAll('[data-tab="'+key+'"]').forEach(el=>el.classList.toggle("hidden",!permitted))}E("shipmentForm")?.classList.toggle("hidden",!canWriteAccounting());let filter=E("shipmentGreenhouseFilter");if(filter){Array.from(filter.options).forEach(o=>{if(o.value==="all")o.hidden=!currentAccess.is_admin;else o.hidden=!hasGreenhouse(o.value)});if(filter.value!=="all"&&!hasGreenhouse(filter.value))filter.value=currentAccess.access[0]?.greenhouse||"khorramabad";}if(!hasGreenhouse("azna")){["avgAhmadiAz","avgRostamiAz","avgRahimiAz"].forEach(id=>{if(E(id))E(id).textContent="—"});if(E("carouselAzna"))E("carouselAzna").textContent="—"};renderSupervisorDashboard()}
+
+function renderSupervisorDashboard(){
+ const isSupervisor=!currentAccess.is_admin&&(currentAccess.access||[]).some(a=>a.role==="supervisor");
+ document.body.classList.toggle("roselor-supervisor",isSupervisor);
+ if(!isSupervisor)return;
+ const meta=sess?.user?.user_metadata||{};
+ const full=String(meta.full_name||meta.name||meta.display_name||"").trim();
+ const first=full.split(/\\s+/)[0]||"سرپرست";
+ const home=E("home");
+ if(home)home.innerHTML='<div class="sup-hero"><div class="sup-mark">🌹 رز لر</div><div class="sup-greet">سلام '+esc(first)+'، خوش اومدی</div><p>پنل سرپرست برداشت</p><div class="sup-note">از اینجا فقط عملیات مجاز خودت رو انجام بده.</div></div><div class="sup-actions"><button type="button" data-sup-open="cash"><span>＋</span><strong>ثبت برداشت</strong><small>ثبت برداشت مجاز گلخانه</small></button><button type="button" data-sup-open="invoices"><span>▤</span><strong>ثبت فاکتور بار</strong><small>ارسال فاکتور برای بررسی مدیر</small></button></div><div class="sup-approval"><b>وضعیت فاکتورها</b><p>فاکتورهای ارسالی تا زمان تأیید مدیر، قطعی و در حساب مشتری منظور نمی‌شوند.</p></div>';
+ document.querySelectorAll(".nav [data-tab]").forEach(el=>{const k=el.getAttribute("data-tab");el.classList.toggle("hidden",!["home","cash","invoices"].includes(k));});
+ ["balances","amb","ledger","bankRecon","ship","harvest","vendors","buckets","users"].forEach(id=>{const el=E(id);if(el)el.classList.add("hidden")});
+ const cash=E("cash");if(cash){const direction=E("direction");if(direction){Array.from(direction.options).forEach(o=>o.hidden=o.value!=="withdrawal");direction.value="withdrawal";direction.disabled=true;}const customer=E("customer");if(customer){const f=customer.closest(".field");if(f)f.classList.add("hidden")}const destination=E("destination");if(destination){const f=destination.closest(".field");if(f)f.classList.add("hidden")}const save=E("saveCash");if(save)save.textContent="ارسال برداشت برای ثبت";}
+ document.querySelectorAll("[data-sup-open]").forEach(btn=>btn.onclick=()=>{const tab=btn.dataset.supOpen;document.querySelector('.nav [data-tab="'+tab+'"]')?.click();});
+}
+
 function userAdmin(action,more){return req("/functions/v1/roselor-user-admin",{method:"POST",body:JSON.stringify({action,...(more||{})})})}
 function selectedAccess(prefix){let a=[];let az=E(prefix+"Azna")?.value||"",kh=E(prefix+"Kh")?.value||"";if(az)a.push({greenhouse:"azna",role:az});if(kh)a.push({greenhouse:"khorramabad",role:kh});return a}
 function accessLabel(a){if(!a?.length)return "بدون دسترسی حسابداری";return a.map(x=>(x.greenhouse==="azna"?"ازنا":"خرم‌آباد")+" · "+(x.role==="accountant"?"حسابدار":x.role==="supervisor"?"سرپرست برداشت":"مشاهده‌گر")).join("، ")}
@@ -1091,3 +1107,21 @@ window.notifyRoselorEvent=async function(kind,customerId){
  window.addEventListener("resize",resetAverageCarousel);
 })();
 </script>
+
+<style>
+.roselor-supervisor .nav [data-tab]:not(.hidden){display:inline-flex}
+.roselor-supervisor .nav [data-tab].hidden{display:none!important}
+.roselor-supervisor .sup-hero{padding:24px 20px;border:1px solid #c9a64b;border-radius:24px;background:radial-gradient(ellipse at top right,#1b5a40,#08291f 70%);color:#fff7df;box-shadow:0 14px 30px #0003}
+.roselor-supervisor .sup-mark{color:#e6cb73;font-weight:800;font-size:14px}
+.roselor-supervisor .sup-greet{font-size:clamp(24px,6vw,34px);font-weight:850;margin:15px 0 6px;line-height:1.5}
+.roselor-supervisor .sup-hero p{margin:0;color:#e5d28f;font-weight:700}
+.roselor-supervisor .sup-note{margin-top:18px;color:#d6e4d8;font-size:13px}
+.roselor-supervisor .sup-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}
+.roselor-supervisor .sup-actions button{min-width:0;text-align:right;padding:18px 15px;border:1px solid #c9a64b;border-radius:18px;background:linear-gradient(145deg,#123f2d,#08271d);color:#fff8e7;display:flex;flex-direction:column;gap:8px}
+.roselor-supervisor .sup-actions button>span{font-size:27px;color:#e5c96c}
+.roselor-supervisor .sup-actions strong{font-size:17px}
+.roselor-supervisor .sup-actions small{font-size:12px;line-height:1.7;color:#cbd9cf}
+.roselor-supervisor .sup-approval{padding:15px 17px;border-right:4px solid #c9a64b;border-radius:13px;background:#0c3023;color:#f4e7b8}
+.roselor-supervisor .sup-approval p{margin:7px 0 0;color:#d4e0d6;font-size:13px;line-height:1.8}
+@media(max-width:440px){.roselor-supervisor .sup-actions{grid-template-columns:1fr}.roselor-supervisor .sup-actions button{padding:15px}}
+</style>
