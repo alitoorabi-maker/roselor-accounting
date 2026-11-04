@@ -648,7 +648,7 @@ async function loadHomeProductionStats(){
 }
 async function loadHarvest(){
  try{
-  if(!E("harvestDate").value){const t=await harvestToday();E("harvestDate").value=t;E("harvestFrom").value=t;E("harvestTo").value=t}
+  const todayHarvest=await harvestToday();if(!E("harvestDate").value)E("harvestDate").value=todayHarvest;if(!E("harvestFrom").value)E("harvestFrom").value=todayHarvest;if(!E("harvestTo").value)E("harvestTo").value=todayHarvest;
   const from=jalaliInputToGregorian(E("harvestFrom").value),to=jalaliInputToGregorian(E("harvestTo").value);
   if(!from||!to)throw Error("تاریخ شمسی را به شکل سال/ماه/روز وارد کن.");
   const result=await api("daily_harvest_summary",{date_from:from,date_to:to});
