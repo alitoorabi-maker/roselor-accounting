@@ -657,7 +657,7 @@ async function loadHarvest(){
  }catch(e){E("harvestList").innerHTML=empty(e.message);E("harvestSummary").innerHTML=""}
 }
 E("harvestForm").addEventListener("submit",async ev=>{
- ev.preventDefault();if(!canWriteAccounting()){say("harvestMsg","دسترسی ثبت برداشت نداری.","err");return}
+ ev.preventDefault();if(!(currentAccess.is_admin||(currentAccess.access||[]).some(a=>a.role==="accountant"||a.role==="supervisor"))){say("harvestMsg","دسترسی ثبت برداشت نداری.","err");return}
  const b=E("saveHarvest"),date=jalaliInputToGregorian(E("harvestDate").value),greenhouse=E("harvestGreenhouse").value,bundles=Number(E("harvestBundles").value),notes=E("harvestNotes").value.trim();
  if(!date||!Number.isSafeInteger(bundles)||bundles<0){say("harvestMsg","تاریخ یا تعداد دسته معتبر نیست.","err");return}
  b.disabled=true;
