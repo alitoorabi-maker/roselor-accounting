@@ -25,17 +25,16 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Install Android SDK components
-        uses: android-actions/setup-android@v3
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
         with:
-          packages: "platform-tools, platforms;android-36, build-tools;36.0.0"
+          packages: ""
           accept-android-sdk-licenses: true
 
-      - name: Configure Android SDK paths
+      - name: Install Android platform and build tools
         shell: bash
         run: |
-          echo "ANDROID_HOME=${ANDROID_HOME:-$ANDROID_SDK_ROOT}" >> "$GITHUB_ENV"
-          echo "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/platform-tools" >> "$GITHUB_PATH"
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
