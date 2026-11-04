@@ -25,7 +25,7 @@ jobs:
       - name: Prepare portal
         run: |
           mkdir -p public
-          cp supervisor-portal.html public/index.html
+          cp supervisor-portal.html public/index.html\n          cp supervisor-portal.html public/supervisor-portal.html
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
