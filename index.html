@@ -663,7 +663,7 @@ E("harvestForm").addEventListener("submit",async ev=>{
  b.disabled=true;
  try{
   const result=await api("save_daily_harvest",{harvest_date:date,greenhouse,quantity_bundles:bundles,notes});
-  if(result?.ok!==true||result?.verified!==true||(result?.pending_approval===true?Number(result.submission?.quantity_bundles)!==bundles:Number(result.harvest?.quantity_bundles)!==bundles))throw Error(result?.error||"ثبت برداشت از پایگاه داده تأیید نشد.");
+  if(result?.ok!==true||result?.verified!==true)throw Error(result?.error||"پاسخ پایگاه داده فاقد تأیید معتبر است.");const savedBundles=Number(result.pending_approval===true?result.submission?.quantity_bundles:result.harvest?.quantity_bundles);if(!Number.isFinite(savedBundles)||savedBundles!==bundles)throw Error("تعداد دسته ثبت‌شده با مقدار ارسالی یکسان نیست.");const savedDate=String(result.pending_approval===true?result.submission?.harvest_date:result.harvest?.harvest_date||"").slice(0,10);if(savedDate&&savedDate!==date)throw Error("تاریخ ثبت‌شده ("+savedDate+") با تاریخ انتخابی ("+date+") یکسان نیست.");
   say("harvestMsg",result.pending_approval===true?(result.already_pending===true?"این برداشت قبلاً ثبت شده و همچنان در انتظار تأیید مدیر است.":"برداشت ثبت شد و برای تأیید مدیر ارسال شد."):"برداشت روزانه در سوپا ثبت و تأیید شد.","ok");
   E("harvestFrom").value=E("harvestDate").value;E("harvestTo").value=E("harvestDate").value;
   await loadHarvest();
