@@ -6,7 +6,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity
-            android:name="ir.roselor.accounting.MainActivity"
+            android:name="ir.roselor.supervisor.MainActivity"
             android:exported="true"
             android:screenOrientation="portrait">
             <intent-filter>
