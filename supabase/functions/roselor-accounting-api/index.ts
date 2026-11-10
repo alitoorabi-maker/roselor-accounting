@@ -48,7 +48,7 @@ Deno.serve(async (req: Request) => {
   const metadataAdmin=meta.accounting_admin===true || meta.role==="admin";
   let body:any; try { body=await req.json(); } catch { return send({ok:false,error:"invalid_json"},400); }
   const action=body.action;
-  const allowed=["my_access","overview","customer_balances","customer_ledger","create_customer_discount_adjustment","create_customer_balance_adjustment","transfer_customer_balance","transaction_ledger","unmatched_transactions","shipments_without_invoice","monthly_sales_monitor","bank_balance_reconciliation","create_invoice_for_shipment","pending_supervisor_invoices","approve_supervisor_invoice","create_shipment","customer_contract_options","delete_shipment","shipment_form_options","reconcile_deposit","reconcile_withdrawal","create_bank_reconciliation_adjustment","vendor_options","create_vendor","update_vendor","daily_harvest_summary","delete_daily_harvest","monthly_shipment_summary","returned_buckets","create_returned_bucket","driver_bucket_ledger","delete_driver_bucket_ledger","create_driver_bucket_return","pending_driver_bucket_returns","review_driver_bucket_return","pending_supervisor_shipments","review_supervisor_shipment","pending_supervisor_harvests","review_supervisor_harvest","driver_delivery_confirmations","save_daily_harvest","supervisor_bucket_form_options","supervisor_bucket_requests","submit_supervisor_bucket_return"];
+  const allowed=["my_access","overview","customer_balances","customer_ledger","create_customer_discount_adjustment","create_customer_balance_adjustment","transfer_customer_balance","transaction_ledger","unmatched_transactions","shipments_without_invoice","monthly_sales_monitor","bank_balance_reconciliation","create_invoice_for_shipment","pending_supervisor_invoices","approve_supervisor_invoice","create_shipment","customer_contract_options","delete_shipment","shipment_form_options","reconcile_deposit","reconcile_withdrawal","create_bank_reconciliation_adjustment","vendor_options","create_vendor","update_vendor","daily_harvest_summary","cold_storage_summary","delete_daily_harvest","monthly_shipment_summary","returned_buckets","create_returned_bucket","driver_bucket_ledger","delete_driver_bucket_ledger","create_driver_bucket_return","pending_driver_bucket_returns","review_driver_bucket_return","pending_supervisor_shipments","review_supervisor_shipment","pending_supervisor_harvests","review_supervisor_harvest","driver_delivery_confirmations","save_daily_harvest","supervisor_bucket_form_options","supervisor_bucket_requests","submit_supervisor_bucket_return"];
   if(!allowed.includes(action)) return send({ok:false,error:"unsupported_action",allowed},400);
   const key=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if(!key) return send({ok:false,error:"server_configuration_missing"},500);
@@ -109,7 +109,7 @@ Deno.serve(async (req: Request) => {
   const hasSupervisor=!metadataAdmin&&accessRows.some((x:any)=>x.role==="supervisor");
   const sectionPermissions:any=metadataAdmin||accessRows.some((x:any)=>x.role==="accountant")?Object.fromEntries(Object.keys(sectionDefaults).map(k=>[k,{view:true,write:true}])):hasSupervisor?Object.fromEntries(Object.keys(sectionDefaults).map(k=>[k,{view:k==="cash"||k==="invoices"||k==="ship"||k==="harvest",write:k==="cash"||k==="invoices"||k==="ship"||k==="harvest"}])):Object.fromEntries(Object.keys(sectionDefaults).map(k=>{const entries=accessRows.map((x:any)=>({role:x.role,permission:x.section_permissions?.[k]||sectionDefaults[k]}));return [k,{view:entries.some((x:any)=>x.permission.view===true),write:false}]}));
   if(action==="my_access") return reply(req,{ok:true,is_admin:metadataAdmin,access:metadataAdmin?[{greenhouse:"azna",role:"admin"},{greenhouse:"khorramabad",role:"admin"}]:accessRows,section_permissions:sectionPermissions});
-  if(hasSupervisor&&!["shipments_without_invoice","shipment_form_options","create_shipment","create_invoice_for_shipment","save_daily_harvest","daily_harvest_summary","supervisor_bucket_form_options","supervisor_bucket_requests","submit_supervisor_bucket_return"].includes(action)) return send({ok:false,error:"supervisor_action_not_allowed"},403);
+  if(hasSupervisor&&!["shipments_without_invoice","shipment_form_options","create_shipment","create_invoice_for_shipment","save_daily_harvest","daily_harvest_summary","cold_storage_summary","supervisor_bucket_form_options","supervisor_bucket_requests","submit_supervisor_bucket_return"].includes(action)) return send({ok:false,error:"supervisor_action_not_allowed"},403);
   if(action==="supervisor_bucket_form_options"){
     if(!hasSupervisor)return send({ok:false,error:"supervisor_only"},403);
     const greenhouse=String(body.greenhouse||"");
@@ -252,6 +252,33 @@ Deno.serve(async (req: Request) => {
         totals[x.greenhouse]+=Number(x.quantity_bundles||0);
       }
       return send({ok:true,source:"supabase",date_from:dateFrom,date_to:dateTo,totals,shipment_count:Array.isArray(rows)?rows.filter((x:any)=>allowedGreenhouses.has(x.greenhouse)&&x.status!=="cancelled").length:0});
+    }
+    if(action==="cold_storage_summary") {
+      const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Tehran",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());
+      const part=(type:string)=>parts.find(x=>x.type===type)?.value||"";
+      const today=part("year")+"-"+part("month")+"-"+part("day");
+      const baselines=await get("cold_storage_opening_balances?select=greenhouse,opening_bundles,baseline_at,baseline_date&limit=2");
+      const movements=await get("cold_storage_movements?select=greenhouse,delta_bundles&limit=10000");
+      const harvestRows=await get("daily_harvest?select=greenhouse,quantity_bundles&harvest_date=eq."+encodeURIComponent(today)+"&limit=100");
+      const result:any={};
+      for(const row of (Array.isArray(baselines)?baselines:[])) {
+        if(!allowedGreenhouses.has(row.greenhouse)) continue;
+        const movementTotal=(Array.isArray(movements)?movements:[])
+          .filter((x:any)=>x.greenhouse===row.greenhouse)
+          .reduce((sum:number,x:any)=>sum+Number(x.delta_bundles||0),0);
+        const harvestedToday=(Array.isArray(harvestRows)?harvestRows:[])
+          .filter((x:any)=>x.greenhouse===row.greenhouse)
+          .reduce((sum:number,x:any)=>sum+Number(x.quantity_bundles||0),0);
+        result[row.greenhouse]={
+          opening_bundles:Number(row.opening_bundles||0),
+          movement_bundles:movementTotal,
+          current_bundles:Number(row.opening_bundles||0)+movementTotal,
+          harvested_today:harvestedToday,
+          baseline_at:row.baseline_at,
+          baseline_date:row.baseline_date
+        };
+      }
+      return send({ok:true,source:"supabase",date:today,greenhouses:result});
     }
     if(action==="daily_harvest_summary") {
       const dateFrom=typeof body.date_from==="string"?body.date_from.trim():"";
