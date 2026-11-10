@@ -46,22 +46,19 @@ async function loadSupervisorProductionStats(){
  if(!box)return;
  box.innerHTML='<div class="muted small">در حال دریافت آمار…</div>';
  try{
-  const parts=new Intl.DateTimeFormat("en-u-ca-persian",{timeZone:"Asia/Tehran",year:"numeric",month:"numeric",day:"numeric"}).formatToParts(new Date());
-  const jy=Number(parts.find(x=>x.type==="year").value),jm=Number(parts.find(x=>x.type==="month").value),jd=Number(parts.find(x=>x.type==="day").value);
-  const dateFrom=jalaliToGregorian(jy,jm,1),dateTo=jalaliToGregorian(jy,jm,jd);
-  const result=await api("daily_harvest_summary",{date_from:dateFrom,date_to:dateTo});
-  if(result?.ok!==true||!Array.isArray(result.harvests))throw Error(result?.error||"دریافت آمار برداشت ناموفق بود.");
+  const result=await api("cold_storage_summary",{});
+  if(result?.ok!==true||!result.greenhouses)throw Error(result?.error||"دریافت موجودی سردخانه ناموفق بود.");
   const greenhouses=[...new Set((access?.access||[]).map(a=>String(a.greenhouse||"").trim().toLowerCase()).filter(g=>["azna","khorramabad"].includes(g)))];
-  const rows=result.harvests;
   const fmt=n=>Number(n||0).toLocaleString("fa-IR");
   const labels={azna:"ازنا",khorramabad:"خرم‌آباد"};
   box.innerHTML=greenhouses.length?greenhouses.map(g=>{
-   const own=rows.filter(x=>x.greenhouse===g);
-   const today=own.filter(x=>String(x.harvest_date)===dateTo).reduce((sum,x)=>sum+Number(x.quantity_bundles||0),0);
-   const cold=own.reduce((sum,x)=>sum+Number(x.remaining_bundles||0),0);
-   return '<div class="panel" style="margin:0;padding:13px;background:#09271c;border-color:#31513d"><div class="row"><strong>'+labels[g]+'</strong><span class="muted small">ماه جاری</span></div><div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:10px"><div><div class="muted small">برداشت امروز</div><strong style="font-size:22px;color:var(--gold)">'+fmt(today)+'</strong><div class="muted small">دسته</div></div><div><div class="muted small">موجودی سردخانه</div><strong style="font-size:22px;color:var(--gold)">'+fmt(cold)+'</strong><div class="muted small">دسته</div></div></div></div>';
+   const x=result.greenhouses[g];
+   if(!x)return '<div class="status err">اطلاعات موجودی '+labels[g]+' در سامانه ثبت نشده است.</div>';
+   return '<div class="panel" style="margin:0;padding:13px;background:#09271c;border-color:#31513d"><div class="row"><strong>'+labels[g]+'</strong><span class="muted small">موجودی جاری</span></div><div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:10px"><div><div class="muted small">برداشت امروز</div><strong style="font-size:22px;color:var(--gold)">'+fmt(x.harvested_today)+'</strong><div class="muted small">دسته</div></div><div><div class="muted small">موجودی سردخانه</div><strong style="font-size:22px;color:var(--gold)">'+fmt(x.current_bundles)+'</strong><div class="muted small">دسته</div></div></div></div>';
   }).join(""):'<div class="muted small">برای این حساب گلخانه‌ای تعریف نشده است.</div>';
-  meta.textContent="آمار تا تاریخ "+jy+"/"+String(jm).padStart(2,"0")+"/"+String(jd).padStart(2,"0")+" · موجودی سردخانه برابر مانده برداشت‌های ماه جاری پس از کسر بارهای فاکتورخورده است.";
+  const parts=new Intl.DateTimeFormat("en-u-ca-persian",{timeZone:"Asia/Tehran",year:"numeric",month:"numeric",day:"numeric"}).formatToParts(new Date());
+  const jy=parts.find(x=>x.type==="year").value,jm=parts.find(x=>x.type==="month").value,jd=parts.find(x=>x.type==="day").value;
+  meta.textContent="موجودی مبنا از تاریخ "+jy+"/"+String(jm).padStart(2,"0")+"/"+String(jd).padStart(2,"0")+" ثبت شده؛ برداشت‌های بعدی اضافه و بارهای ثبت‌شده کسر می‌شوند.";
  }catch(e){box.innerHTML='<div class="status err">دریافت آمار ناموفق بود: '+String(e.message||e).replace(/</g,"&lt;")+'</div>';if(meta)meta.textContent="";}
 }
 E("reloadProductionStats").onclick=loadSupervisorProductionStats;
