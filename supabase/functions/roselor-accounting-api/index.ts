@@ -103,7 +103,10 @@ Deno.serve(async (req: Request) => {
     if(!r.ok) throw new Error("database_write_failed:"+r.status+":"+JSON.stringify(j));
     return j;
   }
-  await post("rpc/expire_customer_contract_entitlements",{}).catch(()=>null);
+  // Contract-entitlement cleanup is unrelated to supervisor bucket-return requests.
+  // Do not block time-sensitive supervisor actions on a global maintenance RPC.
+  if(!["supervisor_bucket_form_options","supervisor_bucket_requests","submit_supervisor_bucket_return"].includes(action))
+    await post("rpc/expire_customer_contract_entitlements",{}).catch(()=>null);
   let accessRows:any[]=[];
   if(!metadataAdmin) {
     const rows=await get("accounting_user_greenhouse_access?select=role,greenhouse,section_permissions&user_id=eq."+encodeURIComponent(String(claims.sub))+"&order=greenhouse.asc").catch(()=>[]);
