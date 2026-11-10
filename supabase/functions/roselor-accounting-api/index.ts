@@ -379,7 +379,9 @@ Deno.serve(async (req: Request) => {
       const quotaMode=body.contract_quota_mode==="include_next_week"?"include_next_week":"saved_and_current";
       const dailyPrice=body.daily_unit_price_rial===undefined||body.daily_unit_price_rial===null||body.daily_unit_price_rial===""?null:Number(body.daily_unit_price_rial);
       if(dailyPrice!==null&&(!Number.isSafeInteger(dailyPrice)||dailyPrice<=0)) return send({ok:false,error:"invalid_daily_unit_price"},400);
-      let allocation:any;\n      try { allocation=await post("rpc/create_contract_shipment_with_allocation",{p_shipment:row,p_quota_mode:quotaMode,p_daily_unit_price_rial:dailyPrice}); }\n      catch(e) { if(String(e).includes("daily_price_required_for_extra_bundles")) return send({ok:false,error:"contract_quota_exceeded_manager_price_required"},409); throw e; }
+      let allocation:any;
+      try { allocation=await post("rpc/create_contract_shipment_with_allocation",{p_shipment:row,p_quota_mode:quotaMode,p_daily_unit_price_rial:dailyPrice}); }
+      catch(e) { if(String(e).includes("daily_price_required_for_extra_bundles")) return send({ok:false,error:"contract_quota_exceeded_manager_price_required"},409); throw e; }
       const verify=await get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status,notes,declared_amount_rial,flower_truck,bucket_count&id=eq."+encodeURIComponent(shipmentId)+"&limit=1");
       const saved=Array.isArray(verify)?verify[0]:null;
       const effectiveAmount=allocation?.contracted===true?Number(allocation.total_amount_rial):declaredAmount;
