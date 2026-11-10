@@ -745,8 +745,10 @@ async function loadHomeProductionStats(){
   const totalFor=(list,greenhouse,field)=>list.filter(x=>x.greenhouse===greenhouse).reduce((a,x)=>a+Number(x[field]||0),0);
   if(E("homeHarvestTodayKh"))E("homeHarvestTodayKh").textContent=harvestFmt(totalFor(todayRows,"khorramabad","quantity_bundles"));
   if(E("homeHarvestTodayAz"))E("homeHarvestTodayAz").textContent=harvestFmt(totalFor(todayRows,"azna","quantity_bundles"));
-  if(E("homeColdStorageKh"))E("homeColdStorageKh").textContent=harvestFmt(totalFor(rows,"khorramabad","remaining_bundles"));
-  if(E("homeColdStorageAz"))E("homeColdStorageAz").textContent=harvestFmt(totalFor(rows,"azna","remaining_bundles"));
+  const cold=await api("cold_storage_summary",{});
+  if(cold?.ok!==true||!cold.greenhouses)throw Error(cold?.error||"دریافت موجودی واقعی سردخانه ناموفق بود");
+  if(E("homeColdStorageKh"))E("homeColdStorageKh").textContent=harvestFmt(cold.greenhouses.khorramabad?.current_bundles??0);
+  if(E("homeColdStorageAz"))E("homeColdStorageAz").textContent=harvestFmt(cold.greenhouses.azna?.current_bundles??0);
   const range=monthRange();
   const dateFrom=range.month_start.slice(0,10),nextMonthFirst=range.month_end.slice(0,10);
   const prevDay=new Date(Date.parse(nextMonthFirst+"T00:00:00Z")-86400000);
