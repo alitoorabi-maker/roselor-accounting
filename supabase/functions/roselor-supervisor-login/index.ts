@@ -3,6 +3,7 @@ const BASE="https://amiahhuapkqwbtcsmzal.supabase.co";
 const ALLOWED=new Set(["https://alitoorabi-maker.github.io","https://chatgpt.com","https://amiahhuapkqwbtcsmzal.supabase.co","https://roselor-accounting.lovable.app"]);
 function headers(req:Request){const o=req.headers.get("origin")||"";return {"content-type":"application/json; charset=utf-8","access-control-allow-origin":ALLOWED.has(o)?o:"https://chatgpt.com","access-control-allow-headers":"authorization, content-type, apikey","access-control-allow-methods":"POST, OPTIONS","cache-control":"no-store","vary":"Origin"}}
 function out(req:Request,b:unknown,s=200){return new Response(JSON.stringify(b),{status:s,headers:headers(req)})}
+function reject(req:Request,stage:string,status=401){console.warn("supervisor_login_rejected",{stage,status});return out(req,{error:"نام کاربری یا رمز عبور نادرست است."},status)}
 Deno.serve(async(req:Request)=>{
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:headers(req)});
  if(req.method!=="POST")return out(req,{error:"method_not_allowed"},405);
@@ -10,26 +11,29 @@ Deno.serve(async(req:Request)=>{
  if(!service||!pub)return out(req,{error:"server_configuration_missing"},500);
  try{
   const b=await req.json().catch(()=>({})),username=String(b.username||"").trim().toLowerCase(),password=String(b.password||"");
-  if(!/^[a-z0-9._-]{3,32}$/.test(username)||!password||password.length>256)return out(req,{error:"نام کاربری یا رمز عبور نادرست است."},401);
+  if(!/^[a-z0-9._-]{3,32}$/.test(username)||!password||password.length>256)return reject(req,"input_validation");
   const h={apikey:service,authorization:"Bearer "+service};
   let matches:any[]=[];
   for(let page=1;page<=10;page++){
    const ur=await fetch(BASE+"/auth/v1/admin/users?page="+page+"&per_page=1000",{headers:h});
-   if(!ur.ok)return out(req,{error:"ورود در حال حاضر ممکن نیست. دوباره تلاش کنید."},503);
+   if(!ur.ok){console.error("supervisor_login_users_api_failed",{status:ur.status});return out(req,{error:"ورود در حال حاضر ممکن نیست. دوباره تلاش کنید."},503)}
    const d=await ur.json().catch(()=>({})),users=Array.isArray(d.users)?d.users:[];
    matches.push(...users.filter((u:any)=>String(u.user_metadata?.username||"").trim().toLowerCase()===username||String(u.email||"").split("@")[0].trim().toLowerCase()===username));
    if(users.length<1000)break;
   }
   const unique=[...new Map(matches.map((u:any)=>[u.id,u])).values()];
-  if(unique.length!==1)return out(req,{error:"نام کاربری یا رمز عبور نادرست است."},401);
+  console.info("supervisor_login_user_lookup",{match_count:unique.length});
+  if(unique.length!==1)return reject(req,"user_lookup");
   const user=unique[0];
   const ar=await fetch(BASE+"/rest/v1/accounting_user_greenhouse_access?select=user_id,role&user_id=eq."+encodeURIComponent(user.id),{headers:h});
-  if(!ar.ok)return out(req,{error:"ورود در حال حاضر ممکن نیست. دوباره تلاش کنید."},503);
+  if(!ar.ok){console.error("supervisor_login_access_api_failed",{status:ar.status});return out(req,{error:"ورود در حال حاضر ممکن نیست. دوباره تلاش کنید."},503)}
   const access=await ar.json().catch(()=>[]);
-  if(!Array.isArray(access)||!access.some((x:any)=>["supervisor","greenhouse_supervisor"].includes(String(x.role||"").toLowerCase().replace(/[\\s-]+/g,"_"))))return out(req,{error:"نام کاربری یا رمز عبور نادرست است."},401);
+  const hasSupervisor=Array.isArray(access)&&access.some((x:any)=>["supervisor","greenhouse_supervisor"].includes(String(x.role||"").toLowerCase().replace(/[\s-]+/g,"_")));
+  console.info("supervisor_login_access_lookup",{row_count:Array.isArray(access)?access.length:0,has_supervisor:hasSupervisor});
+  if(!hasSupervisor)return reject(req,"access_lookup");
   const tr=await fetch(BASE+"/auth/v1/token?grant_type=password",{method:"POST",headers:{apikey:pub,"content-type":"application/json"},body:JSON.stringify({email:user.email,password})});
   const token=await tr.json().catch(()=>({}));
-  if(!tr.ok||!token.access_token||!token.refresh_token)return out(req,{error:"نام کاربری یا رمز عبور نادرست است."},401);
+  if(!tr.ok||!token.access_token||!token.refresh_token){console.warn("supervisor_login_auth_failed",{status:tr.status,code:token.error_code||token.code||null});return reject(req,"password_auth")}
   return out(req,token);
- }catch{return out(req,{error:"ورود در حال حاضر ممکن نیست. دوباره تلاش کنید."},500)}
+ }catch(e){console.error("supervisor_login_internal_error",String(e));return out(req,{error:"ورود در حال حاضر ممکن نیست. دوباره تلاش کنید."},500)}
 });
