@@ -48,7 +48,7 @@ Deno.serve(async (req: Request) => {
   const metadataAdmin=meta.accounting_admin===true || meta.role==="admin";
   let body:any; try { body=await req.json(); } catch { return send({ok:false,error:"invalid_json"},400); }
   const action=body.action;
-  const allowed=["my_access","overview","customer_balances","customer_ledger","create_customer_discount_adjustment","create_customer_balance_adjustment","transfer_customer_balance","transaction_ledger","unmatched_transactions","shipments_without_invoice","monthly_sales_monitor","bank_balance_reconciliation","create_invoice_for_shipment","pending_supervisor_invoices","approve_supervisor_invoice","create_shipment","delete_shipment","shipment_form_options","reconcile_deposit","reconcile_withdrawal","create_bank_reconciliation_adjustment","vendor_options","create_vendor","update_vendor","daily_harvest_summary","delete_daily_harvest","monthly_shipment_summary","returned_buckets","create_returned_bucket","driver_bucket_ledger","delete_driver_bucket_ledger","create_driver_bucket_return","pending_driver_bucket_returns","review_driver_bucket_return","pending_supervisor_shipments","review_supervisor_shipment","pending_supervisor_harvests","review_supervisor_harvest","driver_delivery_confirmations","save_daily_harvest"];
+  const allowed=["my_access","overview","customer_balances","customer_ledger","create_customer_discount_adjustment","create_customer_balance_adjustment","transfer_customer_balance","transaction_ledger","unmatched_transactions","shipments_without_invoice","monthly_sales_monitor","bank_balance_reconciliation","create_invoice_for_shipment","pending_supervisor_invoices","approve_supervisor_invoice","create_shipment","customer_contract_options","delete_shipment","shipment_form_options","reconcile_deposit","reconcile_withdrawal","create_bank_reconciliation_adjustment","vendor_options","create_vendor","update_vendor","daily_harvest_summary","delete_daily_harvest","monthly_shipment_summary","returned_buckets","create_returned_bucket","driver_bucket_ledger","delete_driver_bucket_ledger","create_driver_bucket_return","pending_driver_bucket_returns","review_driver_bucket_return","pending_supervisor_shipments","review_supervisor_shipment","pending_supervisor_harvests","review_supervisor_harvest","driver_delivery_confirmations","save_daily_harvest"];
   if(!allowed.includes(action)) return send({ok:false,error:"unsupported_action",allowed},400);
   const key=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if(!key) return send({ok:false,error:"server_configuration_missing"},500);
@@ -94,6 +94,7 @@ Deno.serve(async (req: Request) => {
     if(!r.ok) throw new Error("database_write_failed:"+r.status+":"+JSON.stringify(j));
     return j;
   }
+  await post("rpc/expire_customer_contract_entitlements",{}).catch(()=>null);
   let accessRows:any[]=[];
   if(!metadataAdmin) {
     const rows=await get("accounting_user_greenhouse_access?select=role,greenhouse,section_permissions&user_id=eq."+encodeURIComponent(String(claims.sub))+"&order=greenhouse.asc").catch(()=>[]);
@@ -108,7 +109,33 @@ Deno.serve(async (req: Request) => {
   const hasSupervisor=!metadataAdmin&&accessRows.some((x:any)=>x.role==="supervisor");
   const sectionPermissions:any=metadataAdmin||accessRows.some((x:any)=>x.role==="accountant")?Object.fromEntries(Object.keys(sectionDefaults).map(k=>[k,{view:true,write:true}])):hasSupervisor?Object.fromEntries(Object.keys(sectionDefaults).map(k=>[k,{view:k==="cash"||k==="invoices"||k==="ship"||k==="harvest",write:k==="cash"||k==="invoices"||k==="ship"||k==="harvest"}])):Object.fromEntries(Object.keys(sectionDefaults).map(k=>{const entries=accessRows.map((x:any)=>({role:x.role,permission:x.section_permissions?.[k]||sectionDefaults[k]}));return [k,{view:entries.some((x:any)=>x.permission.view===true),write:false}]}));
   if(action==="my_access") return reply(req,{ok:true,is_admin:metadataAdmin,access:metadataAdmin?[{greenhouse:"azna",role:"admin"},{greenhouse:"khorramabad",role:"admin"}]:accessRows,section_permissions:sectionPermissions});
-  if(hasSupervisor&&!["shipments_without_invoice","shipment_form_options","create_shipment","create_invoice_for_shipment","save_daily_harvest","daily_harvest_summary"].includes(action)) return send({ok:false,error:"supervisor_action_not_allowed"},403);
+  if(hasSupervisor&&!["shipments_without_invoice","shipment_form_options","create_shipment","create_invoice_for_shipment","save_daily_harvest","daily_harvest_summary","supervisor_bucket_form_options","supervisor_bucket_requests","submit_supervisor_bucket_return"].includes(action)) return send({ok:false,error:"supervisor_action_not_allowed"},403);
+  if(action==="supervisor_bucket_form_options"){
+    if(!hasSupervisor)return send({ok:false,error:"supervisor_only"},403);
+    const greenhouse=String(body.greenhouse||"");
+    if(!["azna","khorramabad"].includes(greenhouse)||!accessRows.some((x:any)=>x.role==="supervisor"&&x.greenhouse===greenhouse))return send({ok:false,error:"greenhouse_access_denied"},403);
+    const rows=await get("shipments?select=flower_truck&greenhouse=eq."+encodeURIComponent(greenhouse)+"&order=shipped_at.desc&limit=10000");
+    const drivers=[...new Set((Array.isArray(rows)?rows:[]).map((x:any)=>String(x.flower_truck||"").trim()).filter(Boolean))];
+    return send({ok:true,drivers});
+  }
+  if(action==="supervisor_bucket_requests"){
+    if(!hasSupervisor)return send({ok:false,error:"supervisor_only"},403);
+    const rows=await get("driver_bucket_return_requests?select=id,greenhouse,driver_name,bucket_count,status,driver_note,manager_note,created_at,reviewed_at&driver_user_id=eq."+encodeURIComponent(String(claims.sub))+"&order=created_at.desc&limit=200");
+    return send({ok:true,requests:Array.isArray(rows)?rows:[]});
+  }
+  if(action==="submit_supervisor_bucket_return"){
+    if(!hasSupervisor)return send({ok:false,error:"supervisor_only"},403);
+    const greenhouse=String(body.greenhouse||""),driverName=String(body.driver_name||"").trim(),count=Number(body.bucket_count),note=String(body.driver_note||"").trim().slice(0,500);
+    if(!["azna","khorramabad"].includes(greenhouse)||!accessRows.some((x:any)=>x.role==="supervisor"&&x.greenhouse===greenhouse)||driverName.length<1||driverName.length>120||!Number.isSafeInteger(count)||count<1||count>10000)return send({ok:false,error:"invalid_supervisor_bucket_return"},400);
+    const known=await get("shipments?select=flower_truck&greenhouse=eq."+encodeURIComponent(greenhouse)+"&flower_truck=eq."+encodeURIComponent(driverName)+"&limit=1");
+    if(!Array.isArray(known)||!known.length)return send({ok:false,error:"driver_not_found_for_greenhouse"},404);
+    const id=crypto.randomUUID();
+    await post("driver_bucket_return_requests",{id,driver_user_id:String(claims.sub),greenhouse,driver_name:driverName,bucket_count:count,status:"pending",driver_note:note||null});
+    const verify=await get("driver_bucket_return_requests?select=id,driver_user_id,greenhouse,driver_name,bucket_count,status,driver_note,created_at&id=eq."+encodeURIComponent(id)+"&limit=1");
+    const saved=Array.isArray(verify)?verify[0]:null;
+    if(!saved||String(saved.driver_user_id)!==String(claims.sub)||saved.greenhouse!==greenhouse||saved.driver_name!==driverName||Number(saved.bucket_count)!==count||saved.status!=="pending")return send({ok:false,error:"supervisor_bucket_request_verification_failed"},409);
+    return send({ok:true,verified:true,request:saved});
+  }
   if(action==="pending_supervisor_invoices"){if(!metadataAdmin)return send({ok:false,error:"admin_only"},403);const rows=await get("invoices?select=id,shipment_id,invoice_date,amount_rial,commission_rial,net_sales_rial,status,notes&status=eq.pending&notes=like.*supervisor_submission:*&order=invoice_date.asc&limit=200");const shipmentIds=[...new Set((Array.isArray(rows)?rows:[]).map((x:any)=>String(x.shipment_id||"")).filter(Boolean))];const shipments=shipmentIds.length?await get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at&id=in.("+shipmentIds.map(encodeURIComponent).join(",")+")"):[];const customerIds=[...new Set((Array.isArray(shipments)?shipments:[]).map((x:any)=>String(x.customer_id||"")).filter(Boolean))];const customers=customerIds.length?await get("customers?select=id,name&id=in.("+customerIds.map(encodeURIComponent).join(",")+")"):[];const customerNames=new Map((Array.isArray(customers)?customers:[]).map((x:any)=>[String(x.id),x.name]));const shipmentMap=new Map((Array.isArray(shipments)?shipments:[]).map((x:any)=>[String(x.id),x]));return send({ok:true,verified:true,invoices:(Array.isArray(rows)?rows:[]).map((x:any)=>{const s=shipmentMap.get(String(x.shipment_id||""));return {...x,customer_name:customerNames.get(String(s?.customer_id||""))||"نامشخص",greenhouse:s?.greenhouse||null,quantity_bundles:s?.quantity_bundles||null}})});}
   if(action==="approve_supervisor_invoice"){if(!metadataAdmin)return send({ok:false,error:"admin_only"},403);const invoiceId=typeof body.invoice_id==="string"?body.invoice_id.trim():"";if(!invoiceId)return send({ok:false,error:"invoice_id_required"},400);const rows=await get("invoices?select=id,status,notes,amount_rial,shipment_id&id=eq."+encodeURIComponent(invoiceId)+"&limit=1");const current=Array.isArray(rows)?rows[0]:null;if(!current||current.status!=="pending"||!String(current.notes||"").startsWith("supervisor_submission:"))return send({ok:false,error:"supervisor_pending_invoice_not_found"},404);const nextNotes=String(current.notes||"")+"\nتأیید نهایی مدیر: "+new Date().toISOString();const upd=await fetch(BASE+"/rest/v1/invoices?id=eq."+encodeURIComponent(invoiceId),{method:"PATCH",headers:{"content-type":"application/json",apikey:key,authorization:"Bearer "+key,Prefer:"return=minimal"},body:JSON.stringify({status:"received",notes:nextNotes})});if(!upd.ok)return send({ok:false,error:"invoice_approval_write_failed"},409);const verified=await get("invoices?select=id,status,notes,amount_rial,shipment_id&id=eq."+encodeURIComponent(invoiceId)+"&limit=1");const saved=Array.isArray(verified)?verified[0]:null;if(!saved||saved.status!=="received"||saved.shipment_id!==current.shipment_id)return send({ok:false,error:"invoice_approval_verification_failed"},409);return send({ok:true,verified:true,invoice:saved});}
   if(action==="driver_delivery_confirmations"){if(!metadataAdmin)return send({ok:false,error:"admin_only"},403);const rows=await get("shipments?select=id,customer_id,greenhouse,flower_truck,quantity_bundles,bucket_count,shipped_at,status&status=eq.delivered&order=shipped_at.desc&limit=100");const ids=[...new Set((Array.isArray(rows)?rows:[]).map((x:any)=>String(x.customer_id||"")).filter(Boolean))];const customers=ids.length?await get("customers?select=id,name&id=in.("+ids.map(encodeURIComponent).join(",")+")"):[];const names=new Map((Array.isArray(customers)?customers:[]).map((x:any)=>[String(x.id),x.name]));return send({ok:true,shipments:(Array.isArray(rows)?rows:[]).map((x:any)=>({...x,customer_name:names.get(String(x.customer_id||""))||"نامشخص"}))});}
@@ -294,14 +321,27 @@ Deno.serve(async (req: Request) => {
       return send({ok:true,verified:true,harvest:saved});
     }
     if(action==="shipment_form_options") {
-      const [customers,transportVendors,legacyDrivers]=await Promise.all([
+      const [customers,transportVendors,legacyDrivers,contracts]=await Promise.all([
         get("customers?select=id,name,phone,is_active,customer_type&is_active=eq.true&order=name.asc"),
         get("vendors?select=name,flower_truck_driver&is_active=eq.true&vendor_type=eq."+encodeURIComponent("حمل‌ونقل")+"&order=name.asc"),
-        get("vendors?select=flower_truck_driver&is_active=eq.true&flower_truck_driver=not.is.null&order=flower_truck_driver.asc")
+        get("vendors?select=flower_truck_driver&is_active=eq.true&flower_truck_driver=not.is.null&order=flower_truck_driver.asc"),
+        get("customer_contracts?select=id,customer_id,greenhouse,contract_start_date,contract_end_date,delivery_frequency,quantity_per_period,period_price_rial,unit_price_rial,is_active&is_active=eq.true&order=contract_start_date.desc")
       ]);
       const candidates=[...(transportVendors||[]).flatMap((v:any)=>[v.name,v.flower_truck_driver]),...(legacyDrivers||[]).map((v:any)=>v.flower_truck_driver)];
       const flower_truck_drivers=Array.from(new Set(candidates.map((x:any)=>String(x||"").trim()).filter((x:string)=>x.length>0 && x!=="راننده ماشین گل")));
-      return send({ok:true,source:"supabase",customers:customers||[],flower_truck_drivers});
+      return send({ok:true,source:"supabase",customers:customers||[],flower_truck_drivers,contracts:Array.isArray(contracts)?contracts:[]});
+    }
+    if(action==="customer_contract_options") {
+      if(hasSupervisor) return send({ok:false,error:"manager_access_required_for_contract_quota"},403);
+      const customerId=typeof body.customer_id==="string"?body.customer_id.trim():"";
+      const greenhouse=body.greenhouse==="azna"||body.greenhouse==="khorramabad"?body.greenhouse:"";
+      if(!customerId||!greenhouse) return send({ok:false,error:"invalid_contract_lookup"},400);
+      const rows=await get("customer_contracts?select=id,customer_id,greenhouse,contract_start_date,contract_end_date,delivery_frequency,quantity_per_period,period_price_rial,unit_price_rial,is_active&customer_id=eq."+encodeURIComponent(customerId)+"&greenhouse=eq."+encodeURIComponent(greenhouse)+"&is_active=eq.true&order=contract_start_date.desc&limit=5");
+      const today=new Date().toISOString().slice(0,10);
+      const contract=(Array.isArray(rows)?rows:[]).find((x:any)=>x.contract_start_date<=today&&x.contract_end_date>=today)||null;
+      if(!contract) return send({ok:true,contract:null});
+      const entitlements=await get("customer_contract_weekly_entitlements?select=week_start,quota_bundles,consumed_bundles&contract_id=eq."+encodeURIComponent(contract.id)+"&order=week_start.asc");
+      return send({ok:true,contract,entitlements:Array.isArray(entitlements)?entitlements:[]});
     }
     if(action==="create_shipment") {
       const customerId=typeof body.customer_id==="string"?body.customer_id.trim():"";
@@ -328,18 +368,24 @@ Deno.serve(async (req: Request) => {
       const customer=Array.isArray(customers)?customers[0]:null;
       if(!customer||customer.is_active===false) return send({ok:false,error:"active_customer_not_found"},404);
       const isMarketCustomer=customer.customer_type==="market_seller";
-      if(isMarketCustomer&&(!flowerTruck||bucketCount<1)) return send({ok:false,error:"market_truck_and_bucket_count_required"},400);
+      const activeContracts=await get("customer_contracts?select=id&customer_id=eq."+encodeURIComponent(customerId)+"&greenhouse=eq."+encodeURIComponent(greenhouse)+"&is_active=eq.true&contract_start_date=lte."+encodeURIComponent(shippedAt.slice(0,10))+"&contract_end_date=gte."+encodeURIComponent(shippedAt.slice(0,10))+"&limit=1");
+      const hasActiveContract=Array.isArray(activeContracts)&&activeContracts.length>0;
+      if(isMarketCustomer&&!hasActiveContract&&(!flowerTruck||bucketCount<1)) return send({ok:false,error:"market_truck_and_bucket_count_required"},400);
       if(!isMarketCustomer) { bucketCount=0; flowerTruck=""; }
       const compact=String(jy)+String(jm).padStart(2,"0")+String(jd).padStart(2,"0");
       const gh=greenhouse==="azna"?"az":"kh";
       const shipmentId="shp_"+compact+"_"+gh+"_"+crypto.randomUUID().replace(/-/g,"").slice(0,12);
       const row={id:shipmentId,customer_id:customerId,greenhouse:greenhouse,quantity_bundles:bundles,shipped_at:shippedAt,status:hasSupervisor?"pending_approval":"sent",notes:notes||null,declared_amount_rial:declaredAmount,flower_truck:flowerTruck,bucket_count:bucketCount};
-      await post("shipments",row);
+      const quotaMode=body.contract_quota_mode==="include_next_week"?"include_next_week":"saved_and_current";
+      const dailyPrice=body.daily_unit_price_rial===undefined||body.daily_unit_price_rial===null||body.daily_unit_price_rial===""?null:Number(body.daily_unit_price_rial);
+      if(dailyPrice!==null&&(!Number.isSafeInteger(dailyPrice)||dailyPrice<=0)) return send({ok:false,error:"invalid_daily_unit_price"},400);
+      const allocation=await post("rpc/create_contract_shipment_with_allocation",{p_shipment:row,p_quota_mode:quotaMode,p_daily_unit_price_rial:dailyPrice});
       const verify=await get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status,notes,declared_amount_rial,flower_truck,bucket_count&id=eq."+encodeURIComponent(shipmentId)+"&limit=1");
       const saved=Array.isArray(verify)?verify[0]:null;
-      if(!saved||saved.customer_id!==customerId||saved.greenhouse!==greenhouse||Number(saved.quantity_bundles)!==bundles||(declaredAmount===null?saved.declared_amount_rial!==null:Number(saved.declared_amount_rial)!==declaredAmount)||saved.flower_truck!==flowerTruck||Number(saved.bucket_count)!==bucketCount||saved.status!==(hasSupervisor?"pending_approval":"sent")||new Date(saved.shipped_at).toISOString()!==shippedAt)
-        return send({ok:false,error:"shipment_verification_failed",shipment:saved},409);
-      return send({ok:true,verified:true,shipment:{...saved,customer_name:customer.name,customer_phone:customer.phone||null,shipped_at_jalali:check}});
+      const effectiveAmount=allocation?.contracted===true?Number(allocation.total_amount_rial):declaredAmount;
+      if(!saved||saved.customer_id!==customerId||saved.greenhouse!==greenhouse||Number(saved.quantity_bundles)!==bundles||(effectiveAmount===null?saved.declared_amount_rial!==null:Number(saved.declared_amount_rial)!==effectiveAmount)||saved.flower_truck!==flowerTruck||Number(saved.bucket_count)!==bucketCount||saved.status!==(hasSupervisor?"pending_approval":"sent")||new Date(saved.shipped_at).toISOString()!==shippedAt)
+        return send({ok:false,error:"shipment_verification_failed",shipment:saved,allocation},409);
+      return send({ok:true,verified:true,allocation,shipment:{...saved,customer_name:customer.name,customer_phone:customer.phone||null,shipped_at_jalali:check}});
     }
     if(action==="reconcile_withdrawal") {
       const txId=body.transaction_id, disposition=body.disposition;
@@ -712,7 +758,7 @@ if(action==="vendor_options") {
       ]);
       return send({ok:true,source:"supabase",currency:"IRR",transactions,customers});
     }
-    const [shipments,invoices,customers]=await Promise.all([get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status&status=neq.cancelled&order=shipped_at.asc,id.asc&limit=500"),get("invoices?select=shipment_id"),get("customers?select=id,name,phone")]);
+    const [shipments,invoices,customers]=await Promise.all([get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status,declared_amount_rial&status=neq.cancelled&order=shipped_at.asc,id.asc&limit=500"),get("invoices?select=shipment_id"),get("customers?select=id,name,phone")]);
     const invoiced=new Set((invoices||[]).map((x:any)=>x.shipment_id));
     const names=new Map((customers||[]).map((x:any)=>[x.id,x.name]));
     const phones=new Map((customers||[]).map((x:any)=>[x.id,x.phone||null]));
