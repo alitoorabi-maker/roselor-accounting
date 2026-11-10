@@ -749,15 +749,10 @@ async function loadHomeProductionStats(){
   if(cold?.ok!==true||!cold.greenhouses)throw Error(cold?.error||"دریافت موجودی واقعی سردخانه ناموفق بود");
   if(E("homeColdStorageKh"))E("homeColdStorageKh").textContent=harvestFmt(cold.greenhouses.khorramabad?.current_bundles??0);
   if(E("homeColdStorageAz"))E("homeColdStorageAz").textContent=harvestFmt(cold.greenhouses.azna?.current_bundles??0);
-  const range=monthRange();
-  const dateFrom=range.month_start.slice(0,10),nextMonthFirst=range.month_end.slice(0,10);
-  const prevDay=new Date(Date.parse(nextMonthFirst+"T00:00:00Z")-86400000);
-  const dateTo=prevDay.getUTCFullYear()+"-"+String(prevDay.getUTCMonth()+1).padStart(2,"0")+"-"+String(prevDay.getUTCDate()).padStart(2,"0");
-  const days=Math.round((Date.parse(dateTo+"T00:00:00Z")-Date.parse(dateFrom+"T00:00:00Z"))/86400000)+1;
-  const shipped=await api("monthly_shipment_summary",{date_from:dateFrom,date_to:dateTo});
-  if(shipped?.ok!==true||!shipped.totals)throw Error(shipped?.error||"آمار خروج بار دریافت نشد");
-  const averageKh=days?Number(shipped.totals.khorramabad||0)/days:0;
-  const averageAz=days?Number(shipped.totals.azna||0)/days:0;
+  // میانگین برداشت از ابتدای ماه تا روز جاری:
+  // مجموع برداشت‌های واقعی روزانه هر گلخانه تقسیم بر شماره روز جاری ماه شمسی.
+  const averageKh=jd?totalFor(rows,"khorramabad","quantity_bundles")/jd:0;
+  const averageAz=jd?totalFor(rows,"azna","quantity_bundles")/jd:0;
   if(E("homeHarvestAverageKh"))E("homeHarvestAverageKh").textContent=harvestFmt(Math.round(averageKh));
   if(E("homeHarvestAverageAz"))E("homeHarvestAverageAz").textContent=harvestFmt(Math.round(averageAz));
  }catch(e){console.warn("آمار کارت‌های برداشت دریافت نشد:",e);if(E("avgMsg"))say("avgMsg","میانگین برداشت به‌روزرسانی نشد: "+e.message,"err")}
