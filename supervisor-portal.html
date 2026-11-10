@@ -51,7 +51,7 @@ async function loadSupervisorProductionStats(){
   const dateFrom=jalaliToGregorian(jy,jm,1),dateTo=jalaliToGregorian(jy,jm,jd);
   const result=await api("daily_harvest_summary",{date_from:dateFrom,date_to:dateTo});
   if(result?.ok!==true||!Array.isArray(result.harvests))throw Error(result?.error||"دریافت آمار برداشت ناموفق بود.");
-  const greenhouses=[...new Set((access?.access||[]).filter(a=>["supervisor","greenhouse_supervisor"].includes(String(a.role||"").toLowerCase().replace(/[\\s-]+/g,"_"))).map(a=>a.greenhouse).filter(g=>["azna","khorramabad"].includes(g)))];
+  const greenhouses=[...new Set((access?.access||[]).map(a=>String(a.greenhouse||"").trim().toLowerCase()).filter(g=>["azna","khorramabad"].includes(g)))];
   const rows=result.harvests;
   const fmt=n=>Number(n||0).toLocaleString("fa-IR");
   const labels={azna:"ازنا",khorramabad:"خرم‌آباد"};
