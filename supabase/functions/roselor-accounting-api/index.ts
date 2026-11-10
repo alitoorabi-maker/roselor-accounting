@@ -115,7 +115,7 @@ Deno.serve(async (req: Request) => {
     const greenhouse=String(body.greenhouse||"");
     if(!["azna","khorramabad"].includes(greenhouse)||!accessRows.some((x:any)=>x.role==="supervisor"&&x.greenhouse===greenhouse))return send({ok:false,error:"greenhouse_access_denied"},403);
     const rows=await get("shipments?select=flower_truck&greenhouse=eq."+encodeURIComponent(greenhouse)+"&order=shipped_at.desc&limit=10000");
-    const drivers=[...new Set((Array.isArray(rows)?rows:[]).map((x:any)=>String(x.flower_truck||"").trim()).filter(Boolean))];
+    const drivers=[...new Set((Array.isArray(rows)?rows:[]).map((x:any)=>String(x.flower_truck||"").trim()).filter((x:string)=>Boolean(x)&&!["بدون راننده","خودش","نامشخص"].includes(x)))];
     return send({ok:true,drivers});
   }
   if(action==="supervisor_bucket_requests"){
