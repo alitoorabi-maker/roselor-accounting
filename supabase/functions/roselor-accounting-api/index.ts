@@ -42,8 +42,17 @@ Deno.serve(async (req: Request) => {
   if(req.method!=="POST") return send({ok:false,error:"method_not_allowed"},405);
   const auth=req.headers.get("authorization")||"";
   if(!auth.startsWith("Bearer ")) return send({ok:false,error:"authentication_required"},401);
-  const claims=jwtPayload(auth.slice(7));
-  if(!claims?.sub || claims.role!=="authenticated") return send({ok:false,error:"authenticated_user_required"},403);
+  const bearer=auth.slice(7);
+  // Verify the access token with Supabase Auth itself. This also supports
+  // current asymmetric ES256 signing keys without relying on the Edge gateway JWT verifier.
+  const publishable=Deno.env.get("SUPABASE_ANON_KEY")||Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
+  if(!publishable) return send({ok:false,error:"auth_verification_not_configured"},503);
+  const userResponse=await fetch(BASE+"/auth/v1/user",{headers:{apikey:publishable,authorization:"Bearer "+bearer}});
+  const verifiedUser=userResponse.ok?await userResponse.json().catch(()=>null):null;
+  if(!verifiedUser?.id) return send({ok:false,error:"invalid_or_expired_session"},401);
+  const claims=jwtPayload(bearer);
+  if(!claims?.sub || claims.role!=="authenticated" || claims.sub!==verifiedUser.id)
+    return send({ok:false,error:"authenticated_user_required"},403);
   const meta=claims.app_metadata||{};
   const metadataAdmin=meta.accounting_admin===true || meta.role==="admin";
   let body:any; try { body=await req.json(); } catch { return send({ok:false,error:"invalid_json"},400); }
