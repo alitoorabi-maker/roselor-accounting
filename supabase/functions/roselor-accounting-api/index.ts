@@ -590,7 +590,7 @@ Deno.serve(async (req: Request) => {
       }
       const [unmatched,shipments,invoices]=await Promise.all([
         get("bank_transactions?select=id,bank_account_id,transaction_type,amount_rial,transaction_at,balance_after_rial,raw_message,customer_id,status,needs_clarification,accounting_category&status=eq.unmatched&order=transaction_at.desc&limit=100"),
-        get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status,declared_amount_rial,flower_truck,bucket_count&status=neq.cancelled&order=shipped_at.desc&limit=200"),
+        get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status,declared_amount_rial,flower_truck,bucket_count&status=not.in.(cancelled,rejected)&order=shipped_at.desc&limit=200"),
         get("invoices?select=shipment_id")
       ]);
       const invoiceShipments=new Set((invoices||[]).map((x:any)=>x.shipment_id));
