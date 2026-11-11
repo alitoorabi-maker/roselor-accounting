@@ -424,7 +424,7 @@ Deno.serve(async (req: Request) => {
       const verify=await get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status,notes,declared_amount_rial,flower_truck,bucket_count&id=eq."+encodeURIComponent(shipmentId)+"&limit=1");
       const saved=Array.isArray(verify)?verify[0]:null;
       const effectiveAmount=allocation?.contracted===true?Number(allocation.total_amount_rial):declaredAmount;
-      if(!saved||saved.customer_id!==customerId||saved.greenhouse!==greenhouse||Number(saved.quantity_bundles)!==bundles||(effectiveAmount===null?saved.declared_amount_rial!==null:Number(saved.declared_amount_rial)!==effectiveAmount)||saved.flower_truck!==flowerTruck||Number(saved.bucket_count)!==bucketCount||saved.status!==(hasSupervisor?"pending_approval":"sent")||new Date(saved.shipped_at).toISOString()!==shippedAt)
+      if(!saved||saved.customer_id!==customerId||saved.greenhouse!==greenhouse||Number(saved.quantity_bundles)!==bundles||(effectiveAmount===null?saved.declared_amount_rial!==null:Number(saved.declared_amount_rial)!==effectiveAmount)||String(saved.flower_truck||"")!==flowerTruck||Number(saved.bucket_count)!==bucketCount||saved.status!==(hasSupervisor?"pending_approval":"sent")||new Date(saved.shipped_at).toISOString()!==shippedAt)
         return send({ok:false,error:"shipment_verification_failed",shipment:saved,allocation},409);
       return send({ok:true,verified:true,allocation,shipment:{...saved,customer_name:customer.name,customer_phone:customer.phone||null,shipped_at_jalali:check}});
     }
