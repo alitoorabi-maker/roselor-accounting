@@ -257,7 +257,7 @@ Deno.serve(async (req: Request) => {
       const dateTo=typeof body.date_to==="string"?body.date_to.trim():"";
       const validDate=(x:string)=>/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(x+"T00:00:00Z"));
       if(!validDate(dateFrom)||!validDate(dateTo)||dateFrom>dateTo) return send({ok:false,error:"invalid_shipment_date_range"},400);
-      const rows=await get("shipments?select=id,greenhouse,quantity_bundles,shipped_at,status&shipped_at=gte."+encodeURIComponent(dateFrom+"T00:00:00Z")+"&shipped_at=lt."+encodeURIComponent(new Date(Date.parse(dateTo+"T00:00:00Z")+86400000).toISOString())+"&status=neq.cancelled&limit=10000");
+      const rows=await get("shipments?select=id,greenhouse,quantity_bundles,shipped_at,status&shipped_at=gte."+encodeURIComponent(dateFrom+"T00:00:00Z")+"&shipped_at=lt."+encodeURIComponent(new Date(Date.parse(dateTo+"T00:00:00Z")+86400000).toISOString())+"&status=not.in.(cancelled,rejected)&limit=10000");
       const totals:any={azna:0,khorramabad:0};
       for(const x of (Array.isArray(rows)?rows:[])) {
         if(!x.greenhouse||!allowedGreenhouses.has(x.greenhouse)||!Object.prototype.hasOwnProperty.call(totals,x.greenhouse)) continue;
@@ -298,7 +298,7 @@ Deno.serve(async (req: Request) => {
       const validDate=(x:string)=>/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(x+"T00:00:00Z"));
       if(!validDate(dateFrom)||!validDate(dateTo)||dateFrom>dateTo) return send({ok:false,error:"invalid_harvest_date_range"},400);
       const harvestRows=await get("daily_harvest?select=id,harvest_date,greenhouse,quantity_bundles,notes,created_at,updated_at&harvest_date=gte."+encodeURIComponent(dateFrom)+"&harvest_date=lte."+encodeURIComponent(dateTo)+"&order=harvest_date.desc&limit=1000");
-      const shipmentsRows=await get("shipments?select=id,greenhouse,quantity_bundles,shipped_at,status&shipped_at=gte."+encodeURIComponent(dateFrom+"T00:00:00Z")+"&shipped_at=lt."+encodeURIComponent(new Date(Date.parse(dateTo+"T00:00:00Z")+86400000).toISOString())+"&status=neq.cancelled&limit=5000");
+      const shipmentsRows=await get("shipments?select=id,greenhouse,quantity_bundles,shipped_at,status&shipped_at=gte."+encodeURIComponent(dateFrom+"T00:00:00Z")+"&shipped_at=lt."+encodeURIComponent(new Date(Date.parse(dateTo+"T00:00:00Z")+86400000).toISOString())+"&status=not.in.(cancelled,rejected)&limit=5000");
       const invoiceRows=await get("invoices?select=shipment_id&limit=5000");
       const invoiced=new Set((Array.isArray(invoiceRows)?invoiceRows:[]).map((x:any)=>String(x.shipment_id)));
       const shippedByDay:any={};
@@ -323,7 +323,7 @@ Deno.serve(async (req: Request) => {
       if(!row) return send({ok:false,error:"daily_harvest_not_found"},404);
       const dayStart=String(row.harvest_date)+"T00:00:00Z";
       const dayEnd=new Date(Date.parse(dayStart)+86400000).toISOString();
-      const shipments=await get("shipments?select=id,quantity_bundles,shipped_at,status,greenhouse&greenhouse=eq."+encodeURIComponent(row.greenhouse)+"&shipped_at=gte."+encodeURIComponent(dayStart)+"&shipped_at=lt."+encodeURIComponent(dayEnd)+"&status=neq.cancelled&limit=5000");
+      const shipments=await get("shipments?select=id,quantity_bundles,shipped_at,status,greenhouse&greenhouse=eq."+encodeURIComponent(row.greenhouse)+"&shipped_at=gte."+encodeURIComponent(dayStart)+"&shipped_at=lt."+encodeURIComponent(dayEnd)+"&status=not.in.(cancelled,rejected)&limit=5000");
       const invoiceRows=await get("invoices?select=shipment_id&limit=10000");
       const invoiced=new Set((Array.isArray(invoiceRows)?invoiceRows:[]).map((x:any)=>String(x.shipment_id)));
       const invoicedBundles=(Array.isArray(shipments)?shipments:[]).filter((x:any)=>invoiced.has(String(x.id))).reduce((sum:number,x:any)=>sum+Number(x.quantity_bundles||0),0);
@@ -780,7 +780,7 @@ if(action==="vendor_options") {
       if(!iso.test(monthStart)||!iso.test(monthEnd)||monthEnd<=monthStart) return send({ok:false,error:"invalid_month_range"},400);
       const [invoices,shipments,customers]=await Promise.all([
         get("invoices?select=id,shipment_id,invoice_date,amount_rial,status&invoice_date=gte."+encodeURIComponent(monthStart)+"&invoice_date=lt."+encodeURIComponent(monthEnd)+"&status=in.(received,verified,pending)&order=invoice_date.asc&limit=5000"),
-        get("shipments?select=id,customer_id,greenhouse,quantity_bundles,status&status=neq.cancelled&limit=5000"),
+        get("shipments?select=id,customer_id,greenhouse,quantity_bundles,status&status=not.in.(cancelled,rejected)&limit=5000"),
         get("customers?select=id,name")
       ]);
       const shipmentById=new Map((shipments||[]).map((x:any)=>[x.id,x]));
@@ -799,7 +799,7 @@ if(action==="vendor_options") {
       ]);
       return send({ok:true,source:"supabase",currency:"IRR",transactions,customers});
     }
-    const [shipments,invoices,customers]=await Promise.all([get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status,declared_amount_rial&status=neq.cancelled&order=shipped_at.asc,id.asc&limit=500"),get("invoices?select=shipment_id"),get("customers?select=id,name,phone")]);
+    const [shipments,invoices,customers]=await Promise.all([get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status,declared_amount_rial&status=not.in.(cancelled,rejected)&order=shipped_at.asc,id.asc&limit=500"),get("invoices?select=shipment_id"),get("customers?select=id,name,phone")]);
     const invoiced=new Set((invoices||[]).map((x:any)=>x.shipment_id));
     const names=new Map((customers||[]).map((x:any)=>[x.id,x.name]));
     const phones=new Map((customers||[]).map((x:any)=>[x.id,x.phone||null]));
