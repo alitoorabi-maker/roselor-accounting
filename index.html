@@ -94,6 +94,10 @@ body::before{content:none!important;display:none!important}
  .login.panel{margin:0 0 24px!important}
 }
 
+/* Make the banner itself the full-width refresh hit area; override legacy pointer-events:none */
+.roselor-banner-header{pointer-events:auto!important;z-index:50!important;cursor:pointer!important;touch-action:manipulation!important}
+.roselor-banner-header::after{content:"";position:absolute;inset:0;z-index:2;display:block;background:transparent;pointer-events:auto}
+.global-refresh-icon{z-index:3!important;pointer-events:none!important}
 /* Responsive driver bucket ledger: keep tables readable on narrow phones */
 #buckets #returnedBucketsList{width:100%;min-width:0;overflow:hidden}
 #buckets #returnedBucketsList h4{font-size:15px;line-height:1.7;margin:16px 0 9px;color:var(--gold,#d7b85b)}
