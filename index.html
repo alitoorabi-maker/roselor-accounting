@@ -583,13 +583,16 @@ E("search").oninput=renderB;E("showLedger").onclick=()=>{if(!E("ledgerCustomer")
   target.innerHTML=empty("در حال دریافت ریز حساب…");
   const d=await api("customer_ledger",{customer_id:id});
   if(!d.ok)throw Error("دریافت ریز حساب تأیید نشد.");
-  const rows=d.entries||[];
+  const allRows=d.entries||[];
+  const rows=balanceGreenhouseFilter==="all"?allRows:allRows.filter(r=>r.greenhouse===balanceGreenhouseFilter);
+  const visibleAdjustments=balanceGreenhouseFilter==="all"?(d.adjustments||[]):(d.adjustments||[]).filter(a=>a.greenhouse===balanceGreenhouseFilter);
   const freshBalanceData=await api("customer_balances");
   const freshBalances=freshBalanceData.customer_balances||[];
   const currentBalance=freshBalances.find(x=>String(x.customer_id)===String(id))||null;
   const greenhouses=[{id:"azna",label:"ازنا",field:"azna_balance_rial"},{id:"khorramabad",label:"خرم‌آباد",field:"khorramabad_balance_rial"}];
   if(!currentBalance)throw Error("مانده معتبر این مشتری از Supabase دریافت نشد؛ برای جلوگیری از نمایش صفر اشتباه، محاسبه متوقف شد.");
-  const debtCards=greenhouses.map(g=>{
+  const selectedGreenhouses=balanceGreenhouseFilter==="all"?greenhouses:greenhouses.filter(g=>g.id===balanceGreenhouseFilter);
+  const debtCards=selectedGreenhouses.map(g=>{
    const balance=Number(currentBalance[g.field]||0),isCredit=balance<0;
    const label=isCredit?"مانده بستانکاری":"مانده بدهی";
    const amount=(isCredit?"−":"")+fmt(Math.abs(balance));
@@ -598,7 +601,7 @@ E("search").oninput=renderB;E("showLedger").onclick=()=>{if(!E("ledgerCustomer")
   const totalBalance=Number(currentBalance.total_balance_rial||0),totalIsCredit=totalBalance<0;
   const totalLabel=totalIsCredit?"مانده کل بستانکاری":"مانده کل بدهی";
   const totalAmount=(totalIsCredit?"−":"")+fmt(Math.abs(totalBalance));
-  const totalCard='<div class="card" style="border:1px solid #c9a85a;background:rgba(201,168,90,.08);margin-top:12px"><div class="head"><strong>'+totalLabel+'</strong><span class="pill">ریال</span></div><div class="amount">'+totalAmount+'</div></div>';
+  const totalCard=balanceGreenhouseFilter==="all"?'<div class="card" style="border:1px solid #c9a85a;background:rgba(201,168,90,.08);margin-top:12px"><div class="head"><strong>'+totalLabel+'</strong><span class="pill">ریال</span></div><div class="amount">'+totalAmount+'</div></div>':"";
   const adjustmentLabels={
    debit_adjustment:"افزایش بدهی مشتری",
    credit_adjustment:"کاهش بدهی مشتری",
@@ -606,21 +609,21 @@ E("search").oninput=renderB;E("showLedger").onclick=()=>{if(!E("ledgerCustomer")
    transfer_debit:"انتقال مانده · بدهکار",
    discount:"اصلاحیه قبلی · discount"
   };
-  const adjustmentHistory=(d.adjustments||[]).map(a=>{
+  const adjustmentHistory=visibleAdjustments.map(a=>{
    const label=adjustmentLabels[a.adjustment_type]||("اصلاحیه · "+String(a.adjustment_type||"نامشخص"));
    return '<div class="card" style="margin:8px 0;padding:11px;border:1px solid rgba(201,166,75,.35)"><div class="head"><strong>'+esc(label)+'</strong><span class="pill">'+esc(a.greenhouse==="azna"?"ازنا":a.greenhouse==="khorramabad"?"خرم‌آباد":a.greenhouse||"نامشخص")+'</span></div><div class="amount">'+fmt(a.amount_rial)+' <small>ریال</small></div><div class="meta">'+esc(a.description||"بدون شرح")+'</div><div class="meta">تاریخ ثبت: '+esc(fmtDate(a.event_at||a.created_at))+'</div></div>';
   }).join("")||empty("برای این مشتری اصلاحیه‌ای ثبت نشده است.");
   target.innerHTML=
    '<div class="panel"><div class="head"><h2 class="title">ریز حساب '+esc(d.customer?.name||"")+'</h2><span class="pill">ریال</span></div>'+
-   '<h3>مانده هر گلخانه</h3>'+debtCards+totalCard+
+   '<h3>'+(balanceGreenhouseFilter==='all'?'مانده هر گلخانه':'مانده '+(balanceGreenhouseFilter==='azna'?'گلخانه ازنا':'گلخانه خرم‌آباد'))+'</h3>'+debtCards+totalCard+
    '<div class="card" id="customerBalanceAdjustmentCard" style="border:1px solid #c9a85a;margin-top:12px"><h3>اصلاحیه مانده حساب</h3><p class="meta">نوع اصلاحیه را انتخاب کن؛ مبلغ را همیشه به‌صورت عدد مثبت و به ریال وارد کن. اثر بدهکار یا بستانکار را سامانه اعمال می‌کند.</p>'+
    '<div class="field"><label>نوع اصلاحیه</label><select id="balanceAdjustmentDirection"><option value="increase_debt">افزایش بدهی مشتری</option><option value="decrease_debt">کاهش بدهی مشتری</option></select></div>'+
-   '<div class="field"><label>گلخانه</label><select id="balanceAdjustmentGreenhouse"><option value="azna">ازنا</option><option value="khorramabad">خرم‌آباد</option></select></div>'+
+   '<div class="field"><label>گلخانه</label><select id="balanceAdjustmentGreenhouse"><option value="azna" '+(balanceGreenhouseFilter==="azna"?"selected":"")+'>ازنا</option><option value="khorramabad" '+(balanceGreenhouseFilter==="khorramabad"?"selected":"")+'>خرم‌آباد</option></select></div>'+
    '<div class="field"><label>مبلغ اصلاحیه (ریال)</label><input id="balanceAdjustmentAmount" type="number" min="1" step="1" inputmode="numeric" placeholder="مبلغ مثبت به ریال"></div>'+
    '<div class="field"><label>شرح اصلاحیه</label><input id="balanceAdjustmentDescription" maxlength="500" placeholder="علت و توضیح اصلاحیه را بنویس"></div>'+
    '<button type="button" class="btn primary" id="saveCustomerBalanceAdjustment">ثبت اصلاحیه</button><div class="meta" id="balanceAdjustmentMsg"></div></div>'+
    '<div class="card" id="customerBalanceTransferCard" style="border:1px solid #c9a85a;margin-top:12px"><h3>انتقال مانده بین گلخانه‌ها</h3><p class="meta">مبلغ دلخواه از مانده گلخانه مبدأ به مقصد منتقل می‌شود؛ بدون ثبت دریافت یا پرداخت بانکی و بدون تغییر مانده کل مشتری.</p>'+
-   '<div class="field"><label>گلخانه مبدأ</label><select id="transferFrom"><option value="azna">ازنا</option><option value="khorramabad">خرم‌آباد</option></select></div>'+
+   '<div class="field"><label>گلخانه مبدأ</label><select id="transferFrom"><option value="azna" '+(balanceGreenhouseFilter==="azna"?"selected":"")+'>ازنا</option><option value="khorramabad" '+(balanceGreenhouseFilter==="khorramabad"?"selected":"")+'>خرم‌آباد</option></select></div>'+
    '<div class="field"><label>گلخانه مقصد</label><select id="transferTo"><option value="khorramabad">خرم‌آباد</option><option value="azna">ازنا</option></select></div>'+
    '<div class="field"><label>مبلغ انتقال (ریال)</label><input id="transferAmount" type="number" min="1" step="1" inputmode="numeric" placeholder="مبلغ دلخواه به ریال"></div>'+
    '<button type="button" class="btn primary" id="saveBalanceTransfer">ثبت انتقال مبلغ</button><div class="meta" id="balanceTransferMsg"></div></div>'+
