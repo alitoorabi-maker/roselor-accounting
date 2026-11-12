@@ -1249,6 +1249,8 @@ window.notifyRoselorEvent=async function(kind,customerId){
 </style>
 
 <style>
+/* Hide the currency suffix on average-sales figures only */
+.average-panel .avg-person .avg-greenhouse strong::after{content:none!important;display:none!important}
 /* Start the mobile average-sales carousel at its RTL beginning (right side). */
 @media(max-width:620px){
  .average-panel .avg-grid{direction:rtl!important;}
