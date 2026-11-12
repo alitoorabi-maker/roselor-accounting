@@ -1291,3 +1291,11 @@ window.notifyRoselorEvent=async function(kind,customerId){
 .roselor-supervisor .sup-approval p{margin:7px 0 0;color:#d4e0d6;font-size:13px;line-height:1.8}
 @media(max-width:440px){.roselor-supervisor .sup-actions{grid-template-columns:1fr}.roselor-supervisor .sup-actions button{padding:15px}}
 </style>
+
+<style>
+/* Final override: average sales amounts are plain numbers, no currency pseudo-label */
+html body #app .panel.average-panel .avg-person .avg-greenhouse strong[id^="avg"][id$="Kh"]::after,
+html body #app .panel.average-panel .avg-person .avg-greenhouse strong[id^="avg"][id$="Az"]::after{
+ content:""!important;display:none!important;visibility:hidden!important
+}
+</style>
