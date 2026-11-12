@@ -568,6 +568,29 @@ Deno.serve(async (req: Request) => {
       if(!customer) return send({ok:false,error:"customer_not_found"},404);
       return send({ok:true,source:"supabase",currency:"IRR",customer,opening_balances:opening||[],entries:entries||[],adjustments:adjustments||[]});
     }
+    if(action==="customer_ledger_event_detail") {
+      const customerId=typeof body.customer_id==="string"?body.customer_id.trim():"";
+      const sourceType=typeof body.source_type==="string"?body.source_type.trim():"";
+      const sourceId=typeof body.source_id==="string"?body.source_id.trim():"";
+      if(!customerId||!sourceId||!["invoice","payment"].includes(sourceType)) return send({ok:false,error:"invalid_ledger_event_reference"},400);
+      const linked=await get("customer_account_ledger?select=id,customer_id,source_type,source_id,greenhouse,event_at,description,debit_rial,credit_rial,balance_after_rial&customer_id=eq."+encodeURIComponent(customerId)+"&source_type=eq."+encodeURIComponent(sourceType)+"&source_id=eq."+encodeURIComponent(sourceId)+"&limit=1");
+      const ledger=Array.isArray(linked)?linked[0]:null;
+      if(!ledger) return send({ok:false,error:"ledger_event_not_found"},404);
+      if(sourceType==="invoice") {
+        const invoices=await get("invoices?select=id,shipment_id,invoice_date,amount_rial,commission_rial,net_sales_rial,status,received_at,notes,due_date&id=eq."+encodeURIComponent(sourceId)+"&limit=1");
+        const invoice=Array.isArray(invoices)?invoices[0]:null;
+        if(!invoice) return send({ok:false,error:"invoice_not_found"},404);
+        const shipments=await get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status,notes,declared_amount_rial,flower_truck,bucket_count&id=eq."+encodeURIComponent(invoice.shipment_id)+"&customer_id=eq."+encodeURIComponent(customerId)+"&limit=1");
+        const shipment=Array.isArray(shipments)?shipments[0]:null;
+        if(!shipment) return send({ok:false,error:"invoice_shipment_not_found"},404);
+        return send({ok:true,source:"supabase",kind:"invoice",ledger,invoice,shipment});
+      }
+      const payments=await get("payments?select=id,customer_id,amount_rial,bank_account_id,bank_transaction_id,invoice_id,payment_date,notes,created_at&id=eq."+encodeURIComponent(sourceId)+"&customer_id=eq."+encodeURIComponent(customerId)+"&limit=1");
+      const payment=Array.isArray(payments)?payments[0]:null;
+      if(!payment) return send({ok:false,error:"payment_not_found"},404);
+      const accounts=payment.bank_account_id?await get("bank_accounts?select=id,name,bank_name,account_label,greenhouse&id=eq."+encodeURIComponent(payment.bank_account_id)+"&limit=1"):[];
+      return send({ok:true,source:"supabase",kind:"payment",ledger,payment,bank_account:Array.isArray(accounts)?accounts[0]||null:null});
+    }
     if(action==="transaction_ledger") {
       const [transactions,categories,accounts]=await Promise.all([
         get("bank_transactions?select=id,bank_account_id,transaction_type,amount_rial,transaction_at,balance_after_rial,reference_number,raw_message,customer_id,status,accounting_category,accounting_scope,is_accounting_expense,notes,accounting_category_id,created_at&order=transaction_at.desc&limit=1000"),
