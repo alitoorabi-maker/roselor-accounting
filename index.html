@@ -116,7 +116,7 @@ body::before{content:none!important;display:none!important}
 /* Roselor premium driver bucket dashboard */
 #buckets .driver-bucket-filters,#buckets .driver-bucket-summary,#buckets .driver-bucket-ledger,#buckets .driver-bucket-return-form{border:1px solid rgba(201,166,75,.3);border-radius:20px;background:linear-gradient(145deg,#0b3024,#061e16);padding:16px;margin-bottom:14px;box-shadow:0 8px 22px rgba(0,0,0,.12)}
 #buckets .driver-bucket-filters .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-#buckets .driver-bucket-summary{border:2px solid #c9a64b;background:linear-gradient(145deg,#103d2d,#06251b);padding:18px}
+#buckets .driver-bucket-disclosure{border:1px solid #b99a4d;border-radius:22px;margin:16px 0;overflow:hidden;background:rgba(5,48,35,.42)}.driver-bucket-disclosure>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;cursor:pointer;color:#e5c66d}.driver-bucket-disclosure>summary::-webkit-details-marker{display:none}.driver-bucket-disclosure>summary b{display:block;font-size:1.05rem}.driver-bucket-disclosure>summary small{display:block;margin-top:5px;color:#b8c8bd;font-size:.82rem}.driver-bucket-disclosure-arrow{font-size:28px;transition:transform .2s}.driver-bucket-disclosure[open] .driver-bucket-disclosure-arrow{transform:rotate(180deg)}.driver-bucket-disclosure-content{padding:0 12px 12px}.driver-bucket-disclosure-content .driver-bucket-summary,.driver-bucket-disclosure-content .driver-bucket-ledger{margin:8px 0 14px}.driver-bucket-summary{border:2px solid #c9a64b;background:linear-gradient(145deg,#103d2d,#06251b);padding:18px}
 #buckets .driver-bucket-summary-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
 #buckets .driver-bucket-summary-head h3{margin:0 0 5px;color:#f0d080;font-size:19px}
 #buckets .driver-bucket-icon{display:grid;place-items:center;flex:0 0 48px;width:48px;height:48px;border:1px solid #c9a64b;border-radius:14px;color:#f0d080;font-size:28px}
@@ -417,6 +417,9 @@ body{background:radial-gradient(ellipse at 50% 25%,#073d29 0%,#03271b 48%,#00160
  <div class="driver-filter-card"><label for="returnedBucketFilterGreenhouse"><span>🌱 گلخانه</span></label><select id="returnedBucketFilterGreenhouse"><option value="all">همه گلخانه‌های مجاز</option><option value="azna">ازنا</option><option value="khorramabad">خرم‌آباد</option></select></div>
  <div class="driver-filter-card"><label for="returnedBucketFilterCustomer"><span>🚚 راننده</span></label><select id="returnedBucketFilterCustomer"><option value="all">همه راننده‌ها</option></select></div>
 </div>
+<details class="driver-bucket-disclosure">
+ <summary><span><b>مانده و گردش سطل‌ها</b><small>برای مشاهده موجودی و تاریخچه، باز کنید</small></span><span class="driver-bucket-disclosure-arrow">⌄</span></summary>
+ <div class="driver-bucket-disclosure-content">
 <div class="driver-bucket-summary">
  <div class="driver-summary-title"><div><h3>مانده فعلی سطل راننده</h3><div id="driverBucketSelectedLabel">همه راننده‌ها</div></div><span class="driver-bucket-icon">▱</span></div>
  <div class="driver-bucket-metrics">
@@ -429,6 +432,9 @@ body{background:radial-gradient(ellipse at 50% 25%,#073d29 0%,#03271b 48%,#00160
  <div class="driver-ledger-heading"><div><h3>گردش سطل‌ها</h3><p>تاریخچه تحویل و برگشت سطل‌های راننده انتخاب‌شده</p></div><span>▤</span></div>
  <div id="returnedBucketsList"></div>
 </div>
+
+ </div>
+</details>
 <div class="panel" id="driverBucketApprovalPanel"><div class="head"><h3 class="title">درخواست‌های سطل برگشتی راننده‌ها</h3><button type="button" class="btn ghost" id="reloadBucketReturnRequests">به‌روزرسانی</button></div><div id="bucketReturnApprovalList">در حال بارگذاری درخواست‌ها…</div></div><div class="driver-bucket-action-row"><button type="button" id="toggleDriverBucketReturn" class="driver-bucket-submit"><span>＋</span> ثبت سطل برگشتی</button></div>
 <div class="panel driver-bucket-return-form hidden" id="driverBucketReturnPanel"><div class="head"><h3 class="title">ثبت سطل برگشتی</h3><button type="button" class="btn ghost" id="cancelDriverBucketReturn">بستن</button></div><p class="muted small">سطل‌های تحویلی از راننده را ثبت کن.</p><div id="returnedBucketsMsg" class="status info hidden" role="status" aria-live="polite"></div><form id="returnedBucketsForm"><div class="grid"><div class="field"><label for="returnedBucketGreenhouse">گلخانه مربوطه *</label><select id="returnedBucketGreenhouse" required><option value="">انتخاب گلخانه</option><option value="azna">ازنا</option><option value="khorramabad">خرم‌آباد</option></select></div><div class="field"><label for="returnedBucketCustomer">راننده *</label><select id="returnedBucketCustomer" required><option value="">در حال بارگذاری راننده‌ها…</option></select></div><div class="field"><label for="returnedBucketDate">تاریخ برگشت (شمسی) *</label><div class="jalali-date-wrap"><input id="returnedBucketDate" class="cmd jalali-date-text" type="text" inputmode="none" placeholder="۱۴۰۵/۰۸/۰۶" autocomplete="off" readonly required><button type="button" class="date-open" data-date-target="returnedBucketDate" aria-label="انتخاب تاریخ برگشت شمسی">▦</button></div></div><div class="field"><label for="returnedBucketCount">تعداد سطل برگشتی *</label><input id="returnedBucketCount" class="cmd" type="number" min="1" max="10000" step="1" required inputmode="numeric" placeholder="مثلاً ۲۵"></div></div><div class="field"><label for="returnedBucketNotes">توضیحات (اختیاری)</label><textarea id="returnedBucketNotes" rows="2" maxlength="500" placeholder="توضیحات"></textarea></div><button class="btn driver-bucket-submit" id="saveReturnedBuckets" type="submit">ثبت سطل برگشتی</button></form></div>
 </section><section id="supervisorBuckets" class="hidden">
