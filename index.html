@@ -1293,6 +1293,13 @@ window.notifyRoselorEvent=async function(kind,customerId){
 </style>
 
 <style>
+/* Hard override for all average-sales amount elements */
+html body #app .average-panel .avg-person .avg-greenhouse strong::before,
+html body #app .average-panel .avg-person .avg-greenhouse strong::after,
+html body #app .average-panel .avg-person .avg-greenhouse strong:before,
+html body #app .average-panel .avg-person .avg-greenhouse strong:after{
+ content:none!important;display:none!important;visibility:hidden!important
+}
 /* Final override: average sales amounts are plain numbers, no currency pseudo-label */
 html body #app .panel.average-panel .avg-person .avg-greenhouse strong[id^="avg"][id$="Kh"]::after,
 html body #app .panel.average-panel .avg-person .avg-greenhouse strong[id^="avg"][id$="Az"]::after{
