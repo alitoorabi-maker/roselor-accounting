@@ -10,6 +10,13 @@ import android.os.Bundle;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceError;
+import android.view.View;
+import android.view.Gravity;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.webkit.JavascriptInterface;
 import android.graphics.Color;
 
@@ -17,23 +24,64 @@ public class MainActivity extends Activity {
     private static final int NOTIFICATION_PERMISSION_REQUEST = 4107;
     private static final String CHANNEL_ID = "roselor_general";
     private WebView web;
+    private LinearLayout root;
+    private View errorView;
+    private static final String PORTAL_URL = "https://alitoorabi-maker.github.io/roselor-accounting/supervisor-portal.html";
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         getWindow().setStatusBarColor(Color.rgb(6,26,18));
         getWindow().setNavigationBarColor(Color.rgb(6,26,18));
         createNotificationChannel();
+        root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(Color.rgb(6,26,18));
         web = new WebView(this);
         web.getSettings().setJavaScriptEnabled(true);
         web.getSettings().setDomStorageEnabled(true);
         web.getSettings().setDatabaseEnabled(true);
+        web.getSettings().setSafeBrowsingEnabled(true);
+        web.getSettings().setLoadsImagesAutomatically(true);
+        web.getSettings().setJavaScriptCanOpenWindowsAutomatically(false);
         web.addJavascriptInterface(new AndroidNotificationBridge(), "RoselorAndroid");
-        web.setWebViewClient(new WebViewClient());
+        web.setWebViewClient(new WebViewClient() {
+            @Override public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                hideError();
+            }
+            @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                super.onReceivedError(view, request, error);
+                if (request.isForMainFrame()) showError();
+            }
+            @SuppressWarnings("deprecation")
+            @Override public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
+                super.onReceivedError(view, errorCode, description, failingUrl);
+                if (Build.VERSION.SDK_INT < 23) showError();
+            }
+        });
         web.setWebChromeClient(new WebChromeClient());
-        setContentView(web);
-        web.loadUrl("https://alitoorabi-maker.github.io/roselor-accounting/supervisor-portal.html");
+        root.addView(web, new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT
+        ));
+        setContentView(root);
+        web.loadUrl(PORTAL_URL);
     }
 
+    private void showError() {
+        runOnUiThread(() -> {
+            if (root == null || errorView != null) return;
+            LinearLayout panel = new LinearLayout(this);
+            panel.setOrientation(LinearLayout.VERTICAL); panel.setGravity(Gravity.CENTER); panel.setPadding(36,36,36,36); panel.setBackgroundColor(Color.rgb(6,26,18));
+            TextView title = new TextView(this); title.setText("اتصال به رز لر برقرار نشد"); title.setTextColor(Color.rgb(241,220,163)); title.setTextSize(20); title.setGravity(Gravity.CENTER);
+            TextView detail = new TextView(this); detail.setText("اتصال اینترنت یا دسترسی به سرور را بررسی کن و دوباره تلاش کن."); detail.setTextColor(Color.WHITE); detail.setTextSize(14); detail.setGravity(Gravity.CENTER);
+            Button retry = new Button(this); retry.setText("تلاش دوباره"); retry.setOnClickListener(v -> { hideError(); web.loadUrl(PORTAL_URL); });
+            panel.addView(title); panel.addView(detail); panel.addView(retry); errorView = panel;
+            root.addView(errorView, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
+        });
+    }
+    private void hideError() {
+        runOnUiThread(() -> { if (root != null && errorView != null) { root.removeView(errorView); errorView = null; } });
+    }
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
