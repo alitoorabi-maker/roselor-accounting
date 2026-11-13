@@ -1221,15 +1221,20 @@ body.invoices-page #invoices{max-width:100vw!important;overscroll-behavior-x:non
   function decodeKey(s){const pad="=".repeat((4-s.length%4)%4);const raw=atob((s+pad).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(raw,ch=>ch.charCodeAt(0));}
   function hasWebPush(){return !!(window.isSecureContext&&("serviceWorker" in navigator)&&("PushManager" in window)&&("Notification" in window));}
   function openChrome(){
-    const target=location.host+location.pathname+location.search+location.hash;
-    if(!/Android/i.test(navigator.userAgent)){
-      alert("اعلان وب در این مرورگر پشتیبانی نمی‌شود. لطفاً همین صفحه را در مرورگری با پشتیبانی Web Push باز کن.");
-      return;
+    const pageUrl=location.href;
+    const message="این نسخه از برنامه امکان باز کردن مستقیم Chrome را ندارد.\n\nبرای فعال‌سازی اعلان وب:\n۱) آدرس زیر را کپی کن.\n۲) Chrome را جداگانه باز کن.\n۳) آدرس را در Chrome وارد کن و اعلان‌ها را فعال کن.";
+    try{
+      if(navigator.clipboard&&window.isSecureContext){
+        navigator.clipboard.writeText(pageUrl).then(
+          ()=>alert(message+"\n\nآدرس صفحه کپی شد."),
+          ()=>prompt(message+"\n\nآدرس صفحه:",pageUrl)
+        );
+      }else{
+        prompt(message+"\n\nآدرس صفحه:",pageUrl);
+      }
+    }catch(e){
+      prompt(message+"\n\nآدرس صفحه:",pageUrl);
     }
-    b.disabled=true;
-    b.textContent="در حال باز کردن Chrome…";
-    location.href="intent://"+target+"#Intent;scheme=https;package=com.android.chrome;end";
-    setTimeout(()=>{b.disabled=false;b.textContent="باز کردن در Chrome برای فعال‌سازی اعلان 🔔";},1800);
   }
   async function checkSubscription(){
     try{if(!hasWebPush())return false;const reg=await navigator.serviceWorker.ready;return !!(await reg.pushManager.getSubscription());}
