@@ -495,6 +495,20 @@ body{background:radial-gradient(ellipse at 50% 25%,#073d29 0%,#03271b 48%,#00160
 #smsTemplateModal .sms-status.ok{background:#143d2c;color:#b8edc7}
 #smsTemplateModal .sms-status.err{background:#4a211e;color:#ffd1c9}
 @media(max-width:600px){#smsTemplateModal .sms-box{padding:13px}#smsTemplateModal .sms-actions button{flex-basis:100%}}
+#smsTemplateModal .sms-history-wrap{margin-top:18px;border-top:1px solid #496b57;padding-top:14px}
+#smsTemplateModal .sms-history-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;color:#f1dca3;margin-bottom:10px}
+#smsTemplateModal .sms-history-head .btn{font-size:12px;padding:7px 10px}
+#smsTemplateModal .sms-history-item{border:1px solid #496b57;border-radius:11px;padding:11px;margin:8px 0;background:#102f23}
+#smsTemplateModal .sms-history-meta{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;color:#dce9dc;font-size:12px}
+#smsTemplateModal .sms-history-state{border-radius:20px;padding:3px 9px;font-weight:800;font-size:11px}
+#smsTemplateModal .sms-history-state.sent{background:#174b32;color:#b8edc7}
+#smsTemplateModal .sms-history-state.failed{background:#4a211e;color:#ffd1c9}
+#smsTemplateModal .sms-history-state.pending{background:#57451c;color:#ffe6a0}
+#smsTemplateModal .sms-history-item details{margin-top:8px}
+#smsTemplateModal .sms-history-item summary{color:#e8d8a8;cursor:pointer;font-size:12px}
+#smsTemplateModal .sms-history-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.9;font-size:12px;color:#f4f5ee;background:#071a12;border-radius:8px;padding:10px;margin-top:8px}
+#smsTemplateModal .sms-history-empty{color:#c9d8cc;text-align:center;padding:16px;font-size:13px}
+
 </style>
 <div id="smsTemplateModal" aria-hidden="true"><div class="sms-box" role="dialog" aria-modal="true" aria-labelledby="smsModalTitle">
 <div class="head" style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><h2 id="smsModalTitle">ارسال پیامک مشتری</h2><div class="meta" style="color:#c9d8cc">رز لر · ارسال از صف امن پیامک</div></div><button class="btn ghost" id="smsClose" type="button">بستن ×</button></div>
@@ -505,6 +519,10 @@ body{background:radial-gradient(ellipse at 50% 25%,#073d29 0%,#03271b 48%,#00160
 <div class="sms-hint">اطلاعات اصلی بارها یا مانده حساب باید بدون تغییر در متن باقی بمانند. پیش از ارسال، سرور دوباره اطلاعات را از Supabase بررسی می‌کند. هر پیامک فقط یک‌بار وارد صف می‌شود.</div>
 <div class="sms-actions"><button class="btn" id="smsSend" type="button" disabled>ارسال پیامک</button><button class="btn ghost" id="smsCancel" type="button">انصراف</button></div>
 <div id="smsStatus" class="sms-status" style="display:none"></div>
+<div class="sms-history-wrap">
+ <div class="sms-history-head"><strong>سابقه پیامک‌ها</strong><button class="btn ghost" id="smsHistoryReload" type="button">به‌روزرسانی سوابق</button></div>
+ <div id="smsHistoryList"><div class="sms-history-empty">برای مشاهده سوابق، صفحه پیامک را باز کن.</div></div>
+</div>
 </div></div><div class="footer">ROSELOR · حسابداری گلخانه‌ها</div></div>
 <script>
 const BASE="https://amiahhuapkqwbtcsmzal.supabase.co",KEY="sb_publishable_Pmkqa_CAi9O_jZQDBt4aHA_FSgikXZu",E=id=>document.getElementById(id);let sess=null,recoveryToken=null,balances=[],balanceRows=[],balanceGreenhouseFilter="all",amb=[],ships=[],opts=null;
@@ -1310,11 +1328,31 @@ window.notifyRoselorEvent=async function(kind,customerId){
  const modal=E("smsTemplateModal"),customer=E("smsCustomer"),template=E("smsTemplate"),message=E("smsMessage"),preview=E("smsPreview"),send=E("smsSend"),status=E("smsStatus");
  let smsPreviewReady=false,smsBusy=false;
  const smsStatus=(txt,kind)=>{status.textContent=txt;status.className="sms-status "+(kind||"");status.style.display="block"};
+ const historyList=E("smsHistoryList"),historyReload=E("smsHistoryReload");
+ const renderSmsHistory=(rows)=>{
+  if(!Array.isArray(rows)||!rows.length){historyList.innerHTML='<div class="sms-history-empty">هنوز سابقه‌ای برای نمایش وجود ندارد.</div>';return;}
+  historyList.innerHTML=rows.map(x=>{
+   const ok=x.status==="sent"&&String(x.provider_code)==="2";
+   const failed=x.status==="failed";
+   const state=ok?"sent":failed?"failed":"pending";
+   const label=ok?"ارسال‌شده":failed?"ناموفق":"در انتظار / در حال ارسال";
+   const date=fmtDate(x.sent_at||x.created_at);
+   return '<article class="sms-history-item"><div class="sms-history-meta"><strong>'+esc(x.customer_name)+' · '+esc(x.mobile_no)+'</strong><span class="sms-history-state '+state+'">'+label+'</span></div><div class="sms-history-meta"><span>'+esc(date)+'</span><span>شناسه: '+esc(x.id)+'</span></div><details><summary>مشاهده متن و جزئیات پیام</summary><div class="sms-history-text">'+esc(x.text)+'</div><div class="sms-history-meta"><span>وضعیت سرویس: '+esc(x.provider_message||x.error_message||x.status||"—")+'</span><span>کد سرویس: '+esc(x.provider_code||"—")+'</span></div></details></article>';
+  }).join("");
+ };
+ const loadSmsHistory=async()=>{
+  historyReload.disabled=true;historyList.innerHTML='<div class="sms-history-empty">در حال دریافت سوابق…</div>';
+  try{const d=await api("customer_sms_history");if(!d.ok||!d.verified)throw Error(d.error||"دریافت سوابق تأیید نشد.");renderSmsHistory(d.history||[]);}
+  catch(e){historyList.innerHTML='<div class="sms-history-empty">دریافت سوابق ناموفق بود: '+esc(e.message||"خطای نامشخص")+'</div>';}
+  finally{historyReload.disabled=false;}
+ };
+ historyReload.addEventListener("click",loadSmsHistory);
+
  const smsReset=()=>{smsPreviewReady=false;send.disabled=true;message.value="";status.style.display="none";};
- const smsOpen=async()=>{modal.classList.add("open");modal.setAttribute("aria-hidden","false");if(customer.options.length<=1){customer.innerHTML='<option value="">در حال دریافت…</option>';try{const d=await api("customer_sms_customers");const rows=d.customers||[];customer.innerHTML='<option value="">انتخاب مشتری</option>'+rows.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+' · '+esc(x.phone)+'</option>').join("");if(!rows.length)customer.innerHTML='<option value="">مشتری فعال دارای شماره موبایل معتبر یافت نشد</option>';}catch(e){customer.innerHTML='<option value="">دریافت مشتریان ناموفق بود</option>';smsStatus(e.message,"err");}}};
+ const smsOpen=async()=>{modal.classList.add("open");modal.setAttribute("aria-hidden","false");loadSmsHistory();if(customer.options.length<=1){customer.innerHTML='<option value="">در حال دریافت…</option>';try{const d=await api("customer_sms_customers");const rows=d.customers||[];customer.innerHTML='<option value="">انتخاب مشتری</option>'+rows.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+' · '+esc(x.phone)+'</option>').join("");if(!rows.length)customer.innerHTML='<option value="">مشتری فعال دارای شماره موبایل معتبر یافت نشد</option>';}catch(e){customer.innerHTML='<option value="">دریافت مشتریان ناموفق بود</option>';smsStatus(e.message,"err");}}};
  const smsClose=()=>{modal.classList.remove("open");modal.setAttribute("aria-hidden","true");};
  async function makeSmsPreview(){if(smsBusy)return;if(!customer.value){smsStatus("ابتدا مشتری را انتخاب کن.","err");return;}smsBusy=true;preview.disabled=true;send.disabled=true;try{const d=await api("customer_sms_template",{customer_id:customer.value,template:template.value});if(!d.ok||!d.verified)throw Error(d.message||d.error||"ساخت پیش‌نمایش تأیید نشد.");message.value=d.message||"";smsPreviewReady=true;send.disabled=false;smsStatus("اطلاعات از Supabase دریافت و کنترل شد. شماره: "+d.customer.phone+" · متن آماده بررسی و ویرایش است.","ok");}catch(e){message.value="";smsPreviewReady=false;smsStatus(e.message||"خطا در ساخت پیش‌نمایش","err");}finally{smsBusy=false;preview.disabled=false;}}
- async function sendSms(){if(smsBusy||!smsPreviewReady||!customer.value||!message.value.trim())return;smsBusy=true;send.disabled=true;preview.disabled=true;try{const d=await api("customer_sms_template",{customer_id:customer.value,template:template.value,send:true,text:message.value});if(!d.ok||!d.verified||!d.queued)throw Error(d.message||d.error||"ثبت در صف پیامک تأیید نشد.");const id=d.queue.id;smsStatus("پیام در صف ثبت شد؛ در حال بررسی نتیجه ارسال…","ok");let latest=d.queue;for(let i=0;i<5;i++){await new Promise(r=>setTimeout(r,1200));const check=await api("customer_sms_template",{queue_id:id});if(check.ok&&check.verified)latest=check.queue;if(latest.status==="sent"||latest.status==="failed")break;}if(latest.status==="sent"&&String(latest.provider_code)==="2"){smsStatus("ارسال توسط سرویس پیامک پذیرفته شد. شناسه صف: "+id+"\nتحویل قطعی به گوشی هنوز از این وضعیت قابل نتیجه‌گیری نیست.","ok");smsPreviewReady=false;message.value="";}else if(latest.status==="failed"){smsStatus("ارسال ناموفق بود: "+(latest.error_message||latest.provider_message||"علت نامشخص")+"\nشناسه صف: "+id,"err");}else{smsStatus("پیام در صف/مرحله ارسال باقی است. وضعیت فعلی: "+latest.status+" · شناسه صف: "+id+"\nبرای جلوگیری از ارسال تکراری دوباره دکمه را نزن.","ok");}}catch(e){smsStatus(e.message||"خطا در ارسال پیامک","err");}finally{smsBusy=false;preview.disabled=false;send.disabled=!smsPreviewReady;}}
+ async function sendSms(){if(smsBusy||!smsPreviewReady||!customer.value||!message.value.trim())return;smsBusy=true;send.disabled=true;preview.disabled=true;try{const d=await api("customer_sms_template",{customer_id:customer.value,template:template.value,send:true,text:message.value});if(!d.ok||!d.verified||!d.queued)throw Error(d.message||d.error||"ثبت در صف پیامک تأیید نشد.");const id=d.queue.id;smsStatus("پیام در صف ثبت شد؛ در حال بررسی نتیجه ارسال…","ok");let latest=d.queue;for(let i=0;i<5;i++){await new Promise(r=>setTimeout(r,1200));const check=await api("customer_sms_template",{queue_id:id});if(check.ok&&check.verified)latest=check.queue;if(latest.status==="sent"||latest.status==="failed")break;}if(latest.status==="sent"&&String(latest.provider_code)==="2"){smsStatus("ارسال توسط سرویس پیامک پذیرفته شد. شناسه صف: "+id+"\nتحویل قطعی به گوشی هنوز از این وضعیت قابل نتیجه‌گیری نیست.","ok");smsPreviewReady=false;message.value="";await loadSmsHistory();}else if(latest.status==="failed"){smsStatus("ارسال ناموفق بود: "+(latest.error_message||latest.provider_message||"علت نامشخص")+"\nشناسه صف: "+id,"err");}else{smsStatus("پیام در صف/مرحله ارسال باقی است. وضعیت فعلی: "+latest.status+" · شناسه صف: "+id+"\nبرای جلوگیری از ارسال تکراری دوباره دکمه را نزن.","ok");}}catch(e){smsStatus(e.message||"خطا در ارسال پیامک","err");}finally{smsBusy=false;preview.disabled=false;send.disabled=!smsPreviewReady;}}
  E("navSms").addEventListener("click",smsOpen);E("smsClose").onclick=smsClose;E("smsCancel").onclick=smsClose;preview.onclick=makeSmsPreview;send.onclick=sendSms;customer.onchange=smsReset;template.onchange=smsReset;message.oninput=()=>{if(!message.value.trim())send.disabled=true;};
  modal.addEventListener("click",ev=>{if(ev.target===modal)smsClose();});
 })();
