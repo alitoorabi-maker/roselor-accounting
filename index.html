@@ -1211,24 +1211,27 @@ body.invoices-page #invoices{max-width:100vw!important;overscroll-behavior-x:non
 (function(){
   if(document.getElementById("roselorPushEnable")) return;
   const b=document.createElement("button");
-  b.id="roselorPushEnable";
-  b.type="button";
-  b.textContent="فعال‌سازی اعلان‌ها";
-  b.style.cssText="position:fixed;z-index:99990;bottom:16px;left:12px;max-width:calc(100vw - 24px);padding:10px 14px;border:1px solid #c9a64b;border-radius:12px;background:#10392d;color:#f6dfa0;font:600 14px inherit;box-shadow:0 4px 18px #0004;display:none";
+  b.id="roselorPushEnable"; b.type="button"; b.textContent="فعال‌سازی اعلان‌ها 🔔";
+  b.style.cssText="position:fixed;z-index:99990;bottom:18px;left:50%;transform:translateX(-50%);max-width:calc(100vw - 24px);padding:11px 18px;border:1px solid #c9a64b;border-radius:12px;background:#10392d;color:#f6dfa0;font:600 14px Tahoma,Arial;box-shadow:0 4px 18px #0004;display:none";
   document.body.appendChild(b);
   const app=document.getElementById("app");
-  function visibility(){b.style.display=app&&!app.classList.contains("hidden")?"block":"none";}
+  let active=false;
+  function visibility(){b.style.display=app&&!app.classList.contains("hidden")&&!active?"block":"none";}
   if(app)new MutationObserver(visibility).observe(app,{attributes:true,attributeFilter:["class"]});
-  visibility();
   function decodeKey(s){const pad="=".repeat((4-s.length%4)%4);const raw=atob((s+pad).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(raw,ch=>ch.charCodeAt(0));}
+  async function checkSubscription(){
+    try{if(!("serviceWorker" in navigator)||!("PushManager" in window))return false;const reg=await navigator.serviceWorker.ready;return !!(await reg.pushManager.getSubscription());}
+    catch(e){return false;}
+  }
+  (async()=>{active=await checkSubscription();visibility()})();
   b.addEventListener("click",async()=>{
-    const old=b.textContent;b.disabled=true;
+    b.disabled=true;
     try{
-      if(!window.isSecureContext)throw Error("اتصال امن HTTPS برای اعلان فعال نیست.");if(!("serviceWorker" in navigator))throw Error("قابلیت Service Worker در محیط اجرای اپ در دسترس نیست.");if(!("PushManager" in window))throw Error("قابلیت Push API در محیط اجرای اپ در دسترس نیست.");if(!("Notification" in window))throw Error("قابلیت Notification API در محیط اجرای اپ در دسترس نیست.");
+      if(!window.isSecureContext)throw Error("اتصال امن HTTPS برای اعلان فعال نیست.");
+      if(!("serviceWorker" in navigator)||!("PushManager" in window)||!("Notification" in window))throw Error("قابلیت اعلان در این مرورگر در دسترس نیست.");
       if(!sess||!sess.access_token||!sess.user||!sess.user.id)throw Error("ابتدا وارد حساب رز لر شو.");
       if(Notification.permission==="denied")throw Error("اجازه اعلان برای این سایت در تنظیمات مرورگر مسدود شده است.");
-      const permission=await Notification.requestPermission();
-      if(permission!=="granted")throw Error("اجازه نمایش اعلان داده نشد.");
+      if(await Notification.requestPermission()!=="granted")throw Error("اجازه نمایش اعلان داده نشد.");
       const reg=await navigator.serviceWorker.ready;
       const info=await req("/functions/v1/roselor-push",{method:"POST",body:JSON.stringify({action:"status"})});
       if(!info.publicKey)throw Error("کلید عمومی اعلان از سرور دریافت نشد.");
@@ -1239,11 +1242,13 @@ body.invoices-page #invoices{max-width:100vw!important;overscroll-behavior-x:non
       if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:expectedKey});
       const result=await req("/functions/v1/roselor-push",{method:"POST",body:JSON.stringify({action:"subscribe",subscription:sub.toJSON()})});
       if(!result.ok)throw Error(result.error||"ثبت اشتراک اعلان تأیید نشد.");
-      b.textContent="اعلان‌ها فعال شد ✓";
-      alert("اشتراک اعلان این دستگاه ثبت و تأیید شد. برای آزمایش ارسال واقعی، هنوز ارسال مدیریتی را باید جداگانه امتحان کنیم.");
-    }catch(e){alert("فعال‌سازی اعلان ناموفق بود: "+(e.message||e));b.textContent=old;}
-    finally{b.disabled=false;}
+      active=true;visibility();
+      alert("اشتراک اعلان این دستگاه ثبت و تأیید شد.");
+    }catch(e){alert("فعال‌سازی اعلان ناموفق بود: "+(e.message||e));}
+    finally{b.disabled=false;visibility();}
   });
+  document.addEventListener("visibilitychange",async()=>{if(!document.hidden){active=await checkSubscription();visibility();}});
+  visibility();
 })();
 </script>
 
