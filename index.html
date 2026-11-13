@@ -1234,6 +1234,7 @@ body.invoices-page #invoices{max-width:100vw!important;overscroll-behavior-x:non
           window.RoselorAndroid.requestNotificationPermission();
         });
         if(!granted)throw Error("مجوز اعلان در تنظیمات اندروید داده نشد.");
+        window.RoselorAndroid.requestFcmToken();
         b.textContent="مجوز اعلان اندروید فعال شد ✓";
         b.disabled=true;
         alert("مجوز نمایش اعلان برای برنامه رز لر فعال شد. برای دریافت اعلان واقعی در پس‌زمینه، اتصال ارسال اعلان اندروید (FCM) نیز باید تکمیل شود.");
@@ -1433,3 +1434,24 @@ html body #app .panel.average-panel .avg-person .avg-greenhouse strong .avg-numb
   font-weight:900!important;
 }
 </style>
+
+<script>
+/* Register native Android FCM tokens against the currently authenticated Supabase user. */
+(function(){
+  if(window.__roselorFcmBridgeInstalled)return;
+  window.__roselorFcmBridgeInstalled=true;
+  window.addEventListener("roselor-fcm-token",async function(event){
+    try{
+      const token=String(event.detail&&event.detail.token||"");
+      if(!token||!window.RoselorAndroid)return;
+      if(!window.sess||!sess.access_token||!sess.user||!sess.user.id)return;
+      const result=await req("/functions/v1/roselor-push",{
+        method:"POST",
+        body:JSON.stringify({action:"register_fcm",token})
+      });
+      if(!result||result.ok!==true)throw new Error(result&&result.error||"fcm_registration_failed");
+      console.info("Roselor Android push token registered and verified.");
+    }catch(error){console.warn("Roselor FCM token registration failed:",error&&error.message||error);}
+  });
+})();
+</script>
