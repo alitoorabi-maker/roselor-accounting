@@ -115,7 +115,12 @@ async function syncPortalPushButton(){const b=$("enablePushBtn");try{const reg=a
 async function enablePortalPush(){
  const b=$("enablePushBtn");b.disabled=true;
  try{
-  if(!("serviceWorker" in navigator)||!("PushManager" in window)||!("Notification" in window))throw Error("این مرورگر اعلان وب را پشتیبانی نمی‌کند.");
+  if(!window.isSecureContext)throw Error("اعلان وب فقط روی اتصال امن HTTPS فعال می‌شود.");
+  const missingPush=[];
+  if(!("serviceWorker" in navigator))missingPush.push("Service Worker");
+  if(!("PushManager" in window))missingPush.push("Push API");
+  if(!("Notification" in window))missingPush.push("Notification API");
+  if(missingPush.length)throw Error("این محیط از "+missingPush.join("، ")+" پشتیبانی نمی‌کند. احتمالاً صفحه داخل مرورگر داخلی یک برنامه باز شده است. برای فعال‌سازی اعلان، همین صفحه را در Google Chrome باز کن.");
   if(Notification.permission==="denied")throw Error("اجازه اعلان در تنظیمات مرورگر مسدود است.");
   if(await Notification.requestPermission()!=="granted")throw Error("اجازه نمایش اعلان داده نشد.");
   const reg=await navigator.serviceWorker.ready;
@@ -130,7 +135,15 @@ async function enablePortalPush(){
   const result=await req("/functions/v1/roselor-push",{method:"POST",body:JSON.stringify({action:"subscribe",customer_id:String(data.customer.id),subscription:sub.toJSON()})});
   if(!result.ok)throw Error(result.error||"ثبت اشتراک تأیید نشد.");
   b.classList.add("hidden");status("loginMsg","اعلان‌های حساب شما فعال شد.","success");
- }catch(e){status("avgMsg","فعال‌سازی اعلان ناموفق بود: "+(e.message||e),"error");}
+ }catch(e){
+  const message=e?.message||String(e);
+  if(/Android/i.test(navigator.userAgent)&&message.includes("Google Chrome")&&confirm(message+"\\n\\nمی‌خواهی همین صفحه در Chrome باز شود؟")){
+   const target=location.host+location.pathname+location.search+location.hash;
+   location.href="intent://"+target+"#Intent;scheme=https;package=com.android.chrome;end";
+   return;
+  }
+  status("avgMsg","فعال‌سازی اعلان ناموفق بود: "+message,"error");
+ }
  finally{b.disabled=false;syncPortalPushButton()}
 }
 function renderSummary(){
