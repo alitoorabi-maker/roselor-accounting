@@ -137,7 +137,7 @@ async function enablePortalPush(){
   b.classList.add("hidden");status("loginMsg","اعلان‌های حساب شما فعال شد.","success");
  }catch(e){
   const message=e?.message||String(e);
-  if(/Android/i.test(navigator.userAgent)&&message.includes("Google Chrome")&&confirm(message+"\\n\\nمی‌خواهی همین صفحه در Chrome باز شود؟")){
+  if(/Android/i.test(navigator.userAgent)&&message.includes("Google Chrome")&&confirm(message+"\n\nمی‌خواهی همین صفحه در Chrome باز شود؟")){
    const target=location.host+location.pathname+location.search+location.hash;
    location.href="intent://"+target+"#Intent;scheme=https;package=com.android.chrome;end";
    return;
