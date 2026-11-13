@@ -499,7 +499,7 @@ body{background:radial-gradient(ellipse at 50% 25%,#073d29 0%,#03271b 48%,#00160
 <div id="smsTemplateModal" aria-hidden="true"><div class="sms-box" role="dialog" aria-modal="true" aria-labelledby="smsModalTitle">
 <div class="head" style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><h2 id="smsModalTitle">ارسال پیامک مشتری</h2><div class="meta" style="color:#c9d8cc">رز لر · ارسال از صف امن پیامک</div></div><button class="btn ghost" id="smsClose" type="button">بستن ×</button></div>
 <label for="smsCustomer">انتخاب مشتری</label><select id="smsCustomer"><option value="">در حال دریافت مشتریان…</option></select>
-<label for="smsTemplate">قالب پیام</label><select id="smsTemplate"><option value="shipments">فقط بارهای بدون فاکتور</option><option value="balance">فقط مانده حساب</option><option value="followup">بارهای بدون فاکتور + مانده تفکیکی گلخانه‌ها</option></select>
+<label for="smsTemplate">قالب پیام</label><select id="smsTemplate"><option value="shipments">فقط بارهای بدون فاکتور</option><option value="balance">فقط مانده حساب</option><option value="followup">بارهای بدون فاکتور + مانده کل حساب</option></select>
 <div class="sms-actions"><button class="btn" id="smsPreview" type="button">ساخت پیش‌نمایش</button></div>
 <label for="smsMessage">متن پیامک · قابل ویرایش</label><textarea id="smsMessage" maxlength="2000" placeholder="ابتدا مشتری و قالب را انتخاب و پیش‌نمایش را بساز…"></textarea>
 <div class="sms-hint">اطلاعات اصلی بارها یا مانده حساب باید بدون تغییر در متن باقی بمانند. پیش از ارسال، سرور دوباره اطلاعات را از Supabase بررسی می‌کند. هر پیامک فقط یک‌بار وارد صف می‌شود.</div>
