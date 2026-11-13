@@ -1227,8 +1227,12 @@ body.invoices-page #invoices{max-width:100vw!important;overscroll-behavior-x:non
   b.addEventListener("click",async()=>{
     b.disabled=true;
     try{
-      if(!window.isSecureContext)throw Error("اتصال امن HTTPS برای اعلان فعال نیست.");
-      if(!("serviceWorker" in navigator)||!("PushManager" in window)||!("Notification" in window))throw Error("قابلیت اعلان در این مرورگر در دسترس نیست.");
+      if(!window.isSecureContext)throw Error("اعلان وب فقط روی اتصال امن HTTPS فعال می‌شود.");
+      const missingPush=[];
+      if(!("serviceWorker" in navigator))missingPush.push("Service Worker");
+      if(!("PushManager" in window))missingPush.push("Push API");
+      if(!("Notification" in window))missingPush.push("Notification API");
+      if(missingPush.length)throw Error("این محیط از "+missingPush.join("، ")+" پشتیبانی نمی‌کند. احتمالاً صفحه داخل مرورگر داخلی یک برنامه باز شده است. برای فعال‌سازی اعلان، همین صفحه را در Google Chrome باز کن.");
       if(!sess||!sess.access_token||!sess.user||!sess.user.id)throw Error("ابتدا وارد حساب رز لر شو.");
       if(Notification.permission==="denied")throw Error("اجازه اعلان برای این سایت در تنظیمات مرورگر مسدود شده است.");
       if(await Notification.requestPermission()!=="granted")throw Error("اجازه نمایش اعلان داده نشد.");
@@ -1244,7 +1248,15 @@ body.invoices-page #invoices{max-width:100vw!important;overscroll-behavior-x:non
       if(!result.ok)throw Error(result.error||"ثبت اشتراک اعلان تأیید نشد.");
       active=true;visibility();
       alert("اشتراک اعلان این دستگاه ثبت و تأیید شد.");
-    }catch(e){alert("فعال‌سازی اعلان ناموفق بود: "+(e.message||e));}
+    }catch(e){
+      const message=e?.message||String(e);
+      if(/Android/i.test(navigator.userAgent)&&message.includes("Google Chrome")&&confirm(message+"\n\nمی‌خواهی همین صفحه در Chrome باز شود؟")){
+        const target=location.host+location.pathname+location.search+location.hash;
+        location.href="intent://"+target+"#Intent;scheme=https;package=com.android.chrome;end";
+        return;
+      }
+      alert("فعال‌سازی اعلان ناموفق بود: "+message);
+    }
     finally{b.disabled=false;visibility();}
   });
   document.addEventListener("visibilitychange",async()=>{if(!document.hidden){active=await checkSubscription();visibility();}});
