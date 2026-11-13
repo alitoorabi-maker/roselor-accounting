@@ -258,16 +258,16 @@ const names={invoices:"فاکتورهای من",payments:"پرداخت‌های 
 $("listTitle").textContent=names[view];
 document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
 let rows=[],html="";
-const accordion=(title,meta,body,extra="")=>'<article class="card portal-record"><div class="portal-record-head"><span class="portal-record-main"><strong>'+title+'</strong><span class="sub">'+meta+'</span></span>'+(extra?'<span class="portal-record-extra">'+extra+'</span>':'')+'</div><div class="portal-record-body">'+body+'</div></article>';
+const accordion=(title,body)=>'<details class="card portal-accordion"><summary class="portal-accordion-summary"><span class="portal-accordion-main"><strong>'+title+'</strong><span class="sub">برای مشاهده جزئیات لمس کنید</span></span><span class="portal-accordion-side"><span class="invoice-chevron" aria-hidden="true">⌄</span></span></summary><div class="portal-accordion-details">'+body+'</div></details>';
 if(view==="invoices"){
  rows=data.invoices||[];
- html=rows.map(x=>{const sh=(data.shipments||[]).find(s=>s.id===x.shipment_id)||{};const gh=sh.greenhouse==="azna"?"ازنا":sh.greenhouse==="khorramabad"?"خرم‌آباد":"—";return accordion("فاکتور "+esc(x.id),"تاریخ: "+date(x.invoice_date)+" · "+gh,'<div>مبلغ ناخالص: <strong>'+fmt(x.amount_rial)+' ریال</strong></div><div>کسورات: '+fmt(x.commission_rial)+' ریال</div><div>مبلغ نهایی: <strong>'+fmt(x.net_sales_rial)+' ریال</strong></div>','<span class="pill">'+esc(x.status||"ثبت‌شده")+'</span>')}).join("");
+ html=rows.map(x=>{const sh=(data.shipments||[]).find(s=>s.id===x.shipment_id)||{};const gh=sh.greenhouse==="azna"?"ازنا":sh.greenhouse==="khorramabad"?"خرم‌آباد":"—";return accordion("فاکتور",'<div>شناسه: <strong>'+esc(x.id)+'</strong></div><div>تاریخ: '+date(x.invoice_date)+'</div><div>گلخانه: '+gh+'</div><div>وضعیت: '+esc(x.status||"ثبت‌شده")+'</div><div>مبلغ ناخالص: <strong>'+fmt(x.amount_rial)+' ریال</strong></div><div>کسورات: '+fmt(x.commission_rial)+' ریال</div><div>مبلغ نهایی: <strong>'+fmt(x.net_sales_rial)+' ریال</strong></div>')}).join("");
 }else if(view==="payments"){
  rows=data.payments||[];
- html=rows.map(x=>accordion("پرداخت","تاریخ: "+date(x.payment_date),'<div class="value">'+fmt(x.amount_rial)+' ریال</div><div class="sub">'+esc(x.notes||"پرداخت ثبت‌شده")+'</div>')).join("");
+ html=rows.map(x=>accordion("پرداخت",'<div>تاریخ: '+date(x.payment_date)+'</div><div class="value">'+fmt(x.amount_rial)+' ریال</div><div>توضیحات: '+esc(x.notes||"پرداخت ثبت‌شده")+'</div>')).join("");
 }else if(view==="shipments"){
  rows=data.shipments||[];
- html=rows.map(x=>accordion("بار ارسالی","تاریخ: "+date(x.shipped_at)+" · گلخانه: "+(x.greenhouse==="azna"?"ازنا":x.greenhouse==="khorramabad"?"خرم‌آباد":"—"),'<div class="value">'+fmt(x.quantity_bundles)+' دسته</div><div class="sub">وضعیت: '+esc(x.status||"ثبت‌شده")+'</div>')).join("");
+ html=rows.map(x=>accordion("بار ارسالی",'<div>تاریخ: '+date(x.shipped_at)+'</div><div>گلخانه: '+(x.greenhouse==="azna"?"ازنا":x.greenhouse==="khorramabad"?"خرم‌آباد":"—")+'</div><div class="value">'+fmt(x.quantity_bundles)+' دسته</div><div>وضعیت: '+esc(x.status||"ثبت‌شده")+'</div>')).join("");
 }else{
  rows=data.ledger||[];
  const openings=data.opening_balances||[];
@@ -275,10 +275,10 @@ if(view==="invoices"){
  const balanceCards=greenhouses.map(g=>{
   const opening=openings.filter(x=>x.greenhouse===g.id).reduce((s,x)=>s+Number(x.amount_rial||0),0);
   const movements=rows.filter(x=>x.greenhouse===g.id).reduce((s,x)=>s+Number(x.debit_rial||0)-Number(x.credit_rial||0),0);
-  const balance=opening+movements, debt=Math.max(0,balance), credit=Math.max(0,-balance);
-  return accordion("مانده بدهی · "+g.label,"خلاصه حساب · ریال",'<div class="value">'+fmt(debt)+' ریال</div>'+(credit?'<div class="sub">اعتبار مشتری: '+fmt(credit)+' ریال</div>':''));
+  const balance=opening+movements,debt=Math.max(0,balance),credit=Math.max(0,-balance);
+  return accordion("مانده حساب · "+g.label,'<div class="value">'+fmt(debt)+' ریال</div>'+(credit?'<div>اعتبار مشتری: '+fmt(credit)+' ریال</div>':'')+'<div>مانده افتتاحیه: '+fmt(opening)+' ریال</div><div>گردش خالص: '+fmt(movements)+' ریال</div>');
  }).join("");
- html=balanceCards+rows.map(x=>accordion(esc(x.description||x.source_type||"رویداد حسابداری"),(x.greenhouse==="azna"?"ازنا":x.greenhouse==="khorramabad"?"خرم‌آباد":"مشترک")+" · "+date(x.event_at),'<div>بدهکار: '+fmt(x.debit_rial)+' ریال</div><div>بستانکار: '+fmt(x.credit_rial)+' ریال</div><div class="value">مانده پس از رویداد: '+fmt(x.balance_after_rial)+' ریال</div>')).join("");
+ html=balanceCards+rows.map(x=>accordion("رویداد حسابداری",'<div>شرح: '+esc(x.description||x.source_type||"رویداد حسابداری")+'</div><div>گلخانه: '+(x.greenhouse==="azna"?"ازنا":x.greenhouse==="khorramabad"?"خرم‌آباد":"مشترک")+'</div><div>تاریخ: '+date(x.event_at)+'</div><div>بدهکار: '+fmt(x.debit_rial)+' ریال</div><div>بستانکار: '+fmt(x.credit_rial)+' ریال</div><div class="value">مانده پس از رویداد: '+fmt(x.balance_after_rial)+' ریال</div>')).join("");
 }
 $("listContent").innerHTML=html||'<div class="card muted">اطلاعاتی برای نمایش وجود ندارد.</div>';
 }
