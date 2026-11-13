@@ -115,6 +115,17 @@ async function syncPortalPushButton(){const b=$("enablePushBtn");try{const reg=a
 async function enablePortalPush(){
  const b=$("enablePushBtn");b.disabled=true;
  try{
+  if(window.RoselorAndroid&&typeof window.RoselorAndroid.requestNotificationPermission==="function"){
+   const granted=await new Promise(resolve=>{
+    const done=e=>{window.removeEventListener("roselor-notification-permission",done);resolve(!!e.detail?.granted)};
+    window.addEventListener("roselor-notification-permission",done,{once:true});
+    window.RoselorAndroid.requestNotificationPermission();
+   });
+   if(!granted)throw Error("مجوز اعلان در تنظیمات اندروید داده نشد.");
+   status("loginMsg","مجوز نمایش اعلان اندروید فعال شد. برای اعلان پس‌زمینه باید FCM متصل شود.","success");
+   b.disabled=false;
+   return;
+  }
   if(!window.isSecureContext)throw Error("اعلان وب فقط روی اتصال امن HTTPS فعال می‌شود.");
   const missingPush=[];
   if(!("serviceWorker" in navigator))missingPush.push("Service Worker");
