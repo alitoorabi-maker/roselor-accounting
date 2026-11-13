@@ -123,8 +123,8 @@ Deno.serve(async (req: Request) => {
   if(action==="customer_sms_customers"){
     if(!metadataAdmin&&!accessRows.some((x:any)=>x.role==="accountant"))return send({ok:false,error:"sms_customers_access_denied"},403);
     const rows=await get("customers?select=id,name,phone&is_active=eq.true&phone=not.is.null&order=name.asc&limit=2000");
-    const customers=(Array.isArray(rows)?rows:[]).filter((x:any)=>String(x.name||"").trim().length>0&&/^09\\d{9}$/.test(String(x.phone||"").replace(/[\\s-]/g,"")));
-    return reply(req,{ok:true,verified:true,customers:customers.map((x:any)=>({...x,phone:String(x.phone).replace(/[\\s-]/g,"")}))});
+    const customers=(Array.isArray(rows)?rows:[]).filter((x:any)=>String(x.name||"").trim().length>0&&/^09\d{9}$/.test(String(x.phone||"").replace(/[\s-]/g,"")));
+    return reply(req,{ok:true,verified:true,customers:customers.map((x:any)=>({...x,phone:String(x.phone).replace(/[\s-]/g,"")}))});
   }
   if(action==="customer_sms_history"){
     if(!metadataAdmin&&!accessRows.some((x:any)=>x.role==="accountant"))return send({ok:false,error:"sms_history_access_denied"},403);
