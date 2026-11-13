@@ -1397,10 +1397,30 @@ html body #app .panel.average-panel .avg-person .avg-greenhouse strong[id^="avg"
 </style>
 
 <style>
-/* Roselor: average-sales amounts use a consistent 25px size on all screens */
+/* Roselor: explicitly size the actual average number, not only its wrapper */
 html body #app .panel.average-panel .avg-person .avg-greenhouse strong{
-  font-size:25px!important;
+  font-size:29px!important;
   line-height:1.3!important;
   font-weight:900!important;
+}
+html body #app .panel.average-panel .avg-person .avg-greenhouse strong .avg-number{
+  font-size:29px!important;
+  line-height:1.3!important;
+  font-weight:900!important;
+}
+html body #app .panel.average-panel .avg-person .avg-greenhouse strong .avg-currency-marker{
+  font-size:18px!important;
+  line-height:1!important;
+}
+@media(max-width:620px){
+  html body #app .panel.average-panel .avg-person .avg-greenhouse strong,
+  html body #app .panel.average-panel .avg-person .avg-greenhouse strong .avg-number{
+    font-size:25px!important;
+    line-height:1.3!important;
+    font-weight:900!important;
+  }
+  html body #app .panel.average-panel .avg-person .avg-greenhouse strong .avg-currency-marker{
+    font-size:15px!important;
+  }
 }
 </style>
