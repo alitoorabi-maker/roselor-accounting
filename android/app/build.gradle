@@ -1,6 +1,21 @@
-plugins { id 'com.android.application' }
+plugins {
+    id 'com.android.application'
+}
 android {
- namespace 'ir.roselor.supervisor'
- compileSdk 35
- defaultConfig { applicationId 'ir.roselor.supervisor'; minSdk 23; targetSdk 35; versionCode 1; versionName '1.0' }
+    namespace 'ir.roselor.accounting'
+    compileSdk 36
+
+    sourceSets {
+        main {
+            java.srcDirs = ['src/main/src/main/java']
+        }
+    }
+
+    defaultConfig {
+        applicationId 'ir.roselor.accounting'
+        minSdk 23
+        targetSdk 36
+        versionCode 3
+        versionName '1.0.2'
+    }
 }
