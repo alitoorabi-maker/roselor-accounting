@@ -1211,47 +1211,43 @@ body.invoices-page #invoices{max-width:100vw!important;overscroll-behavior-x:non
 (function(){
   if(document.getElementById("roselorPushEnable")) return;
   const b=document.createElement("button");
-  b.id="roselorPushEnable"; b.type="button";
-  const app=document.getElementById("app");
-  let active=false, unsupported=false;
+  b.id="roselorPushEnable"; b.type="button"; b.textContent="فعال‌سازی اعلان‌ها 🔔";
   b.style.cssText="position:fixed;z-index:99990;bottom:18px;left:50%;transform:translateX(-50%);max-width:calc(100vw - 24px);padding:11px 18px;border:1px solid #c9a64b;border-radius:12px;background:#10392d;color:#f6dfa0;font:600 14px Tahoma,Arial;box-shadow:0 4px 18px #0004;display:none";
   document.body.appendChild(b);
+  const app=document.getElementById("app");
+  let active=false;
   function visibility(){b.style.display=app&&!app.classList.contains("hidden")&&!active?"block":"none";}
   if(app)new MutationObserver(visibility).observe(app,{attributes:true,attributeFilter:["class"]});
   function decodeKey(s){const pad="=".repeat((4-s.length%4)%4);const raw=atob((s+pad).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(raw,ch=>ch.charCodeAt(0));}
-  function hasWebPush(){return !!(window.isSecureContext&&("serviceWorker" in navigator)&&("PushManager" in window)&&("Notification" in window));}
-  function openChrome(){
-    const pageUrl=location.href;
-    const message="این نسخه از برنامه امکان باز کردن مستقیم Chrome را ندارد.\n\nبرای فعال‌سازی اعلان وب:\n۱) آدرس زیر را کپی کن.\n۲) Chrome را جداگانه باز کن.\n۳) آدرس را در Chrome وارد کن و اعلان‌ها را فعال کن.";
-    try{
-      if(navigator.clipboard&&window.isSecureContext){
-        navigator.clipboard.writeText(pageUrl).then(
-          ()=>alert(message+"\n\nآدرس صفحه کپی شد."),
-          ()=>prompt(message+"\n\nآدرس صفحه:",pageUrl)
-        );
-      }else{
-        prompt(message+"\n\nآدرس صفحه:",pageUrl);
-      }
-    }catch(e){
-      prompt(message+"\n\nآدرس صفحه:",pageUrl);
-    }
-  }
   async function checkSubscription(){
-    try{if(!hasWebPush())return false;const reg=await navigator.serviceWorker.ready;return !!(await reg.pushManager.getSubscription());}
+    try{if(!("serviceWorker" in navigator)||!("PushManager" in window))return false;const reg=await navigator.serviceWorker.ready;return !!(await reg.pushManager.getSubscription());}
     catch(e){return false;}
   }
-  async function refreshState(){
-    unsupported=!hasWebPush();
-    active=await checkSubscription();
-    b.textContent=unsupported?"باز کردن در Chrome برای فعال‌سازی اعلان 🔔":"فعال‌سازی اعلان‌ها 🔔";
-    visibility();
-  }
+  (async()=>{active=await checkSubscription();visibility()})();
   b.addEventListener("click",async()=>{
-    if(!hasWebPush()){openChrome();return;}
     b.disabled=true;
     try{
+      if(window.RoselorAndroid&&typeof window.RoselorAndroid.requestNotificationPermission==="function"){
+        const granted=await new Promise(resolve=>{
+          const done=e=>{window.removeEventListener("roselor-notification-permission",done);resolve(!!e.detail?.granted);};
+          window.addEventListener("roselor-notification-permission",done,{once:true});
+          window.RoselorAndroid.requestNotificationPermission();
+        });
+        if(!granted)throw Error("مجوز اعلان در تنظیمات اندروید داده نشد.");
+        window.RoselorAndroid.requestFcmToken();
+        b.textContent="مجوز اعلان اندروید فعال شد ✓";
+        b.disabled=true;
+        alert("مجوز نمایش اعلان برای برنامه رز لر فعال شد. برای دریافت اعلان واقعی در پس‌زمینه، اتصال ارسال اعلان اندروید (FCM) نیز باید تکمیل شود.");
+        return;
+      }
+      if(!window.isSecureContext)throw Error("اعلان وب فقط روی اتصال امن HTTPS فعال می‌شود.");
+      const missingPush=[];
+      if(!("serviceWorker" in navigator))missingPush.push("Service Worker");
+      if(!("PushManager" in window))missingPush.push("Push API");
+      if(!("Notification" in window))missingPush.push("Notification API");
+      if(missingPush.length)throw Error("این محیط از "+missingPush.join("، ")+" پشتیبانی نمی‌کند. احتمالاً صفحه داخل مرورگر داخلی یک برنامه باز شده است. برای فعال‌سازی اعلان، همین صفحه را در Google Chrome باز کن.");
       if(!sess||!sess.access_token||!sess.user||!sess.user.id)throw Error("ابتدا وارد حساب رز لر شو.");
-      if(Notification.permission==="denied")throw Error("اجازه اعلان برای این سایت در تنظیمات مرورگر مسدود شده است. از تنظیمات سایت، اعلان‌ها را مجاز کن.");
+      if(Notification.permission==="denied")throw Error("اجازه اعلان برای این سایت در تنظیمات مرورگر مسدود شده است.");
       if(await Notification.requestPermission()!=="granted")throw Error("اجازه نمایش اعلان داده نشد.");
       const reg=await navigator.serviceWorker.ready;
       const info=await req("/functions/v1/roselor-push",{method:"POST",body:JSON.stringify({action:"status"})});
@@ -1263,14 +1259,22 @@ body.invoices-page #invoices{max-width:100vw!important;overscroll-behavior-x:non
       if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:expectedKey});
       const result=await req("/functions/v1/roselor-push",{method:"POST",body:JSON.stringify({action:"subscribe",subscription:sub.toJSON()})});
       if(!result.ok)throw Error(result.error||"ثبت اشتراک اعلان تأیید نشد.");
-      active=true;
-      alert("اشتراک اعلان وب این دستگاه ثبت و تأیید شد.");
-    }catch(e){alert("فعال‌سازی اعلان ناموفق بود: "+(e?.message||String(e)));}
-    finally{b.disabled=false;await refreshState();}
+      active=true;visibility();
+      alert("اشتراک اعلان این دستگاه ثبت و تأیید شد.");
+    }catch(e){
+      const message=e?.message||String(e);
+      if(/Android/i.test(navigator.userAgent)&&message.includes("Google Chrome")&&confirm(message+"\n\nمی‌خواهی همین صفحه در Chrome باز شود؟")){
+        const target=location.host+location.pathname+location.search+location.hash;
+        location.href="intent://"+target+"#Intent;scheme=https;package=com.android.chrome;end";
+        return;
+      }
+      alert("فعال‌سازی اعلان ناموفق بود: "+message);
+    }
+    finally{b.disabled=false;visibility();}
   });
-  document.addEventListener("visibilitychange",async()=>{if(!document.hidden)await refreshState();});
-  refreshState();
-})(); 
+  document.addEventListener("visibilitychange",async()=>{if(!document.hidden){active=await checkSubscription();visibility();}});
+  visibility();
+})();
 </script>
 
 
@@ -1430,3 +1434,25 @@ html body #app .panel.average-panel .avg-person .avg-greenhouse strong .avg-numb
   font-weight:900!important;
 }
 </style>
+
+
+<script>
+/* Register native Android FCM tokens against the currently authenticated Supabase user. */
+(function(){
+  if(window.__roselorFcmBridgeInstalled)return;
+  window.__roselorFcmBridgeInstalled=true;
+  window.addEventListener("roselor-fcm-token",async function(event){
+    try{
+      const token=String(event.detail&&event.detail.token||"");
+      if(!token||!window.RoselorAndroid)return;
+      if(typeof sess==="undefined"||!sess.access_token||!sess.user||!sess.user.id)return;
+      const result=await req("/functions/v1/roselor-push",{
+        method:"POST",
+        body:JSON.stringify({action:"register_fcm",token})
+      });
+      if(!result||result.ok!==true)throw new Error(result&&result.error||"fcm_registration_failed");
+      console.info("Roselor Android push token registered and verified.");
+    }catch(error){console.warn("Roselor FCM token registration failed:",error&&error.message||error);}
+  });
+})();
+</script>
