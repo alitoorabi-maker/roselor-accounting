@@ -1353,3 +1353,18 @@ html body #app .panel.average-panel .avg-person .avg-greenhouse strong[id^="avg"
  content:""!important;display:none!important;visibility:hidden!important
 }
 </style>
+
+<style>
+/* Roselor: enlarge only the average-sales amounts in the top customer cards */
+html body #app .panel.average-panel .avg-person .avg-greenhouse strong{
+  font-size:22px!important;
+  line-height:1.3!important;
+  font-weight:900!important;
+}
+@media(max-width:620px){
+  html body #app .panel.average-panel .avg-person .avg-greenhouse strong{
+    font-size:18px!important;
+    line-height:1.35!important;
+  }
+}
+</style>
