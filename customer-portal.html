@@ -143,7 +143,7 @@ function initAverageMonths(){
 function renderLeaderboard(rows,month,days){
   const root=$("leaderboardContent");
   $("leaderMonth").textContent=month||"ماه انتخاب‌شده";
-  const list=Array.isArray(rows)?rows:[];
+  const list=(Array.isArray(rows)?rows:[]).filter(x=>!String(x.alias||"").includes("اکبری"));
   if(!list.length){root.innerHTML='<div class="leader-empty">برای این ماه هنوز فاکتور تأییدشده‌ای ثبت نشده است.</div>';return;}
   const top=list[0],max=Math.max(1,Number(top.average_monthly_rial||0));
   const amount=x=>fmt(x)+" ریال";
