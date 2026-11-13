@@ -1227,6 +1227,18 @@ body.invoices-page #invoices{max-width:100vw!important;overscroll-behavior-x:non
   b.addEventListener("click",async()=>{
     b.disabled=true;
     try{
+      if(window.RoselorAndroid&&typeof window.RoselorAndroid.requestNotificationPermission==="function"){
+        const granted=await new Promise(resolve=>{
+          const done=e=>{window.removeEventListener("roselor-notification-permission",done);resolve(!!e.detail?.granted);};
+          window.addEventListener("roselor-notification-permission",done,{once:true});
+          window.RoselorAndroid.requestNotificationPermission();
+        });
+        if(!granted)throw Error("مجوز اعلان در تنظیمات اندروید داده نشد.");
+        b.textContent="مجوز اعلان اندروید فعال شد ✓";
+        b.disabled=true;
+        alert("مجوز نمایش اعلان برای برنامه رز لر فعال شد. برای دریافت اعلان واقعی در پس‌زمینه، اتصال ارسال اعلان اندروید (FCM) نیز باید تکمیل شود.");
+        return;
+      }
       if(!window.isSecureContext)throw Error("اعلان وب فقط روی اتصال امن HTTPS فعال می‌شود.");
       const missingPush=[];
       if(!("serviceWorker" in navigator))missingPush.push("Service Worker");
