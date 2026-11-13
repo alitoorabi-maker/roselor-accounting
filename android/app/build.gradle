@@ -14,7 +14,7 @@ android {
 
     defaultConfig {
         applicationId 'ir.roselor.accounting'
-        minSdk 23
+        minSdk 24
         targetSdk 36
         versionCode 3
         versionName '1.0.2'
