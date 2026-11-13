@@ -1280,6 +1280,8 @@ window.notifyRoselorEvent=async function(kind,customerId){
 </style>
 
 <style>
+/* Make average-sales amounts visibly bolder without changing other dashboard numbers */
+#app .average-panel .avg-person .avg-greenhouse strong{font-weight:900!important;text-shadow:0 0 .35px currentColor;}
 /* Hide the currency suffix on average-sales figures only */
 .average-panel .avg-person .avg-greenhouse strong::after{content:none!important;display:none!important}
 /* Start the mobile average-sales carousel at its RTL beginning (right side). */
