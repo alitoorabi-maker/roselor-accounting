@@ -7,6 +7,8 @@ import android.app.NotificationManager;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.webkit.JavascriptInterface;
+import com.google.firebase.messaging.FirebaseMessaging;
+import org.json.JSONObject;
 
 import android.os.Bundle;
 import android.view.Gravity;
@@ -102,6 +104,17 @@ public class MainActivity extends Activity {
     }
 
     private class AndroidNotificationBridge {
+        @JavascriptInterface
+        public void requestFcmToken() {
+            FirebaseMessaging.getInstance().getToken().addOnCompleteListener(task -> {
+                if (!task.isSuccessful() || webView == null) return;
+                String token = task.getResult();
+                String safeToken = JSONObject.quote(token);
+                runOnUiThread(() -> webView.evaluateJavascript(
+                    "window.dispatchEvent(new CustomEvent('roselor-fcm-token',{detail:{token:" + safeToken + "}}));", null));
+            });
+        }
+
         @JavascriptInterface
         public void requestNotificationPermission() {
             runOnUiThread(() -> {
