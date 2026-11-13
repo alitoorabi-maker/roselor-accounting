@@ -10,6 +10,7 @@ import android.os.Bundle;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebChromeClient;
+import android.webkit.JavascriptInterface;
 import android.graphics.Color;
 
 public class MainActivity extends Activity {
@@ -26,11 +27,11 @@ public class MainActivity extends Activity {
         web.getSettings().setJavaScriptEnabled(true);
         web.getSettings().setDomStorageEnabled(true);
         web.getSettings().setDatabaseEnabled(true);
+        web.addJavascriptInterface(new AndroidNotificationBridge(), "RoselorAndroid");
         web.setWebViewClient(new WebViewClient());
         web.setWebChromeClient(new WebChromeClient());
         setContentView(web);
         web.loadUrl("https://alitoorabi-maker.github.io/roselor-accounting/supervisor-portal.html");
-        requestNotificationPermissionIfNeeded();
     }
 
     private void createNotificationChannel() {
@@ -44,12 +45,28 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void requestNotificationPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT >= 33 &&
-            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(
-                new String[]{Manifest.permission.POST_NOTIFICATIONS},
-                NOTIFICATION_PERMISSION_REQUEST
+    private class AndroidNotificationBridge {
+        @JavascriptInterface
+        public void requestNotificationPermission() {
+            runOnUiThread(() -> {
+                if (Build.VERSION.SDK_INT < 33 ||
+                    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                    dispatchNotificationPermission(true);
+                    return;
+                }
+                requestPermissions(
+                    new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                    NOTIFICATION_PERMISSION_REQUEST
+                );
+            });
+        }
+    }
+
+    private void dispatchNotificationPermission(boolean granted) {
+        if (web != null) {
+            web.evaluateJavascript(
+                "window.dispatchEvent(new CustomEvent('roselor-notification-permission',{detail:{granted:" + granted + "}}));",
+                null
             );
         }
     }
@@ -58,10 +75,7 @@ public class MainActivity extends Activity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == NOTIFICATION_PERMISSION_REQUEST && web != null) {
             boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
-            web.evaluateJavascript(
-                "window.dispatchEvent(new CustomEvent('roselor-notification-permission',{detail:{granted:" + granted + "}}));",
-                null
-            );
+            dispatchNotificationPermission(granted);
         }
     }
 
