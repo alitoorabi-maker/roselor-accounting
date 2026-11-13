@@ -40,7 +40,7 @@ public class MainActivity extends Activity {
         splashLayer.setBackgroundColor(0xFFFFFFFF);
 
         ImageView logo = new ImageView(this);
-        logo.setImageResource(ir.roselor.supervisor.R.mipmap.ic_launcher);
+        logo.setImageResource(ir.roselor.accounting.R.mipmap.ic_launcher);
         logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
 
         int logoSize = (int) (180 * getResources().getDisplayMetrics().density);
