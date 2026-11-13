@@ -78,6 +78,15 @@
 .invoice-chevron{color:var(--gold);font-size:22px;transition:transform .18s}
 .invoice-accordion[open] .invoice-chevron{transform:rotate(180deg)}
 .invoice-details{border-top:1px solid var(--line);padding:12px 14px;display:grid;gap:8px}
+
+.portal-accordion{padding:0;overflow:hidden}
+.portal-accordion-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px;cursor:pointer;list-style:none}
+.portal-accordion-summary::-webkit-details-marker{display:none}
+.portal-accordion-main{display:grid;gap:4px;min-width:0}
+.portal-accordion-main strong{overflow-wrap:anywhere}
+.portal-accordion-side{display:flex;align-items:center;gap:9px;flex:0 0 auto}
+.portal-accordion-details{border-top:1px solid var(--line);padding:12px 14px;display:grid;gap:8px}
+.portal-accordion[open] .invoice-chevron{transform:rotate(180deg)}
 </style><div class="roselor-portal-banner" role="img" aria-label="بنر رز لر"></div><div class="wrap"><span id="conn" class="hidden" aria-hidden="true">ورود امن</span>
 <section id="login" class="panel"><div class="portal-subtitle">پنل اختصاصی گل‌فروش‌ها</div><h2 class="title">ورود به حساب شخصی</h2><p class="muted">فقط اطلاعات حساب خودتان نمایش داده می‌شود.</p><div class="field"><label for="username">نام کاربری</label><input id="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="مثلاً ahmadi"></div><div class="field"><label for="password">رمز عبور</label><input id="password" type="password" autocomplete="current-password"></div><button id="loginBtn" class="btn" style="width:100%">ورود امن</button><div id="loginMsg" class="status hidden"></div></section>
 <main id="portal" class="hidden"><section class="panel florist-welcome"><h2 id="customerName" class="title" style="font-size:23px;margin:0;text-align:center">حساب گل‌فروش خوش آمدید</h2></section>
@@ -241,19 +250,34 @@ async function loadAverage(){
     status("avgMsg","دریافت میانگین ناموفق بود: "+(e?.message||"خطای نامشخص"),"error");
   }
 }
-function renderList(view){const names={invoices:"فاکتورهای من",payments:"پرداخت‌های من",shipments:"بارهای من",ledger:"گردش حساب"};$("listTitle").textContent=names[view];document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===view));let rows=[],html="";if(view==="invoices"){rows=data.invoices||[];html=rows.map((x,i)=>{const sh=(data.shipments||[]).find(s=>s.id===x.shipment_id)||{};const gh=sh.greenhouse==="azna"?"ازنا":sh.greenhouse==="khorramabad"?"خرم‌آباد":"—";return '<details class="card invoice-accordion"><summary class="invoice-summary"><span class="invoice-summary-main"><strong>فاکتور '+esc(x.id)+'</strong><span class="sub">تاریخ: '+date(x.invoice_date)+' · '+gh+'</span></span><span class="invoice-summary-side"><span class="pill">'+esc(x.status||"ثبت‌شده")+'</span><span class="invoice-chevron" aria-hidden="true">⌄</span></span></summary><div class="invoice-details"><div>مبلغ ناخالص: <strong>'+fmt(x.amount_rial)+' ریال</strong></div><div>کسورات: '+fmt(x.commission_rial)+' ریال</div><div>مبلغ نهایی: <strong>'+fmt(x.net_sales_rial)+' ریال</strong></div></div></details>'}).join("")}else if(view==="payments"){rows=data.payments||[];html=rows.map(x=>'<div class="card"><div class="row"><strong>پرداخت</strong><span class="pill">'+date(x.payment_date)+'</span></div><div class="value">'+fmt(x.amount_rial)+' ریال</div><div class="sub">'+esc(x.notes||"پرداخت ثبت‌شده")+'</div></div>').join("")}else if(view==="shipments"){rows=data.shipments||[];html=rows.map(x=>'<div class="card"><div class="row"><strong>بار ارسالی</strong><span class="pill">'+esc(x.status||"ثبت‌شده")+'</span></div><div>تاریخ: '+date(x.shipped_at)+' · گلخانه: '+(x.greenhouse==="azna"?"ازنا":x.greenhouse==="khorramabad"?"خرم‌آباد":"—")+'</div><div class="value">'+fmt(x.quantity_bundles)+' دسته</div></div>').join("")}else{rows=data.ledger||[];{
-const openings=data.opening_balances||[];
-const allRows=rows||[];
-const greenhouses=[{id:"azna",label:"ازنا"},{id:"khorramabad",label:"خرم‌آباد"}];
-const balanceCards=greenhouses.map(g=>{
+function renderList(view){
+const names={invoices:"فاکتورهای من",payments:"پرداخت‌های من",shipments:"بارهای من",ledger:"گردش حساب"};
+$("listTitle").textContent=names[view];
+document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
+let rows=[],html="";
+const accordion=(title,meta,body,extra="")=>'<details class="card portal-accordion"><summary class="portal-accordion-summary"><span class="portal-accordion-main"><strong>'+title+'</strong><span class="sub">'+meta+'</span></span><span class="portal-accordion-side">'+extra+'<span class="invoice-chevron" aria-hidden="true">⌄</span></span></summary><div class="portal-accordion-details">'+body+'</div></details>';
+if(view==="invoices"){
+ rows=data.invoices||[];
+ html=rows.map(x=>{const sh=(data.shipments||[]).find(s=>s.id===x.shipment_id)||{};const gh=sh.greenhouse==="azna"?"ازنا":sh.greenhouse==="khorramabad"?"خرم‌آباد":"—";return accordion("فاکتور "+esc(x.id),"تاریخ: "+date(x.invoice_date)+" · "+gh,'<div>مبلغ ناخالص: <strong>'+fmt(x.amount_rial)+' ریال</strong></div><div>کسورات: '+fmt(x.commission_rial)+' ریال</div><div>مبلغ نهایی: <strong>'+fmt(x.net_sales_rial)+' ریال</strong></div>','<span class="pill">'+esc(x.status||"ثبت‌شده")+'</span>')}).join("");
+}else if(view==="payments"){
+ rows=data.payments||[];
+ html=rows.map(x=>accordion("پرداخت","تاریخ: "+date(x.payment_date),'<div class="value">'+fmt(x.amount_rial)+' ریال</div><div class="sub">'+esc(x.notes||"پرداخت ثبت‌شده")+'</div>')).join("");
+}else if(view==="shipments"){
+ rows=data.shipments||[];
+ html=rows.map(x=>accordion("بار ارسالی","تاریخ: "+date(x.shipped_at)+" · گلخانه: "+(x.greenhouse==="azna"?"ازنا":x.greenhouse==="khorramabad"?"خرم‌آباد":"—"),'<div class="value">'+fmt(x.quantity_bundles)+' دسته</div><div class="sub">وضعیت: '+esc(x.status||"ثبت‌شده")+'</div>')).join("");
+}else{
+ rows=data.ledger||[];
+ const openings=data.opening_balances||[];
+ const greenhouses=[{id:"azna",label:"ازنا"},{id:"khorramabad",label:"خرم‌آباد"}];
+ const balanceCards=greenhouses.map(g=>{
   const opening=openings.filter(x=>x.greenhouse===g.id).reduce((s,x)=>s+Number(x.amount_rial||0),0);
-  const movements=allRows.filter(x=>x.greenhouse===g.id).reduce((s,x)=>s+Number(x.debit_rial||0)-Number(x.credit_rial||0),0);
-  const balance=opening+movements;
-  const debt=Math.max(0,balance);
-  const credit=Math.max(0,-balance);
-  return '<div class="card"><div class="row"><strong>مانده بدهی · '+g.label+'</strong><span class="pill">ریال</span></div><div class="value">'+fmt(debt)+' ریال</div>'+(credit?'<div class="sub">اعتبار مشتری: '+fmt(credit)+' ریال</div>':'')+'</div>';
-}).join("");
-html=balanceCards+allRows.map(x=>'<div class="card"><div class="row"><strong>'+esc(x.description||x.source_type||"رویداد حسابداری")+'</strong><span class="pill">'+(x.greenhouse==="azna"?"ازنا":x.greenhouse==="khorramabad"?"خرم‌آباد":"مشترک")+'</span></div><div class="sub">'+date(x.event_at)+' · '+esc(x.source_type||"")+'</div><div>بدهکار: '+fmt(x.debit_rial)+' · بستانکار: '+fmt(x.credit_rial)+'</div><div class="value">مانده پس از رویداد: '+fmt(x.balance_after_rial)+' ریال</div></div>').join("");
-}}$("listContent").innerHTML=html||'<div class="card muted">اطلاعاتی برای نمایش وجود ندارد.</div>'}
+  const movements=rows.filter(x=>x.greenhouse===g.id).reduce((s,x)=>s+Number(x.debit_rial||0)-Number(x.credit_rial||0),0);
+  const balance=opening+movements, debt=Math.max(0,balance), credit=Math.max(0,-balance);
+  return accordion("مانده بدهی · "+g.label,"خلاصه حساب · ریال",'<div class="value">'+fmt(debt)+' ریال</div>'+(credit?'<div class="sub">اعتبار مشتری: '+fmt(credit)+' ریال</div>':''));
+ }).join("");
+ html=balanceCards+rows.map(x=>accordion(esc(x.description||x.source_type||"رویداد حسابداری"),(x.greenhouse==="azna"?"ازنا":x.greenhouse==="khorramabad"?"خرم‌آباد":"مشترک")+" · "+date(x.event_at),'<div>بدهکار: '+fmt(x.debit_rial)+' ریال</div><div>بستانکار: '+fmt(x.credit_rial)+' ریال</div><div class="value">مانده پس از رویداد: '+fmt(x.balance_after_rial)+' ریال</div>')).join("");
+}
+$("listContent").innerHTML=html||'<div class="card muted">اطلاعاتی برای نمایش وجود ندارد.</div>';
+}
 try{initAverageMonths();}catch(e){console.error("ماه‌های پنل:",e);status("loginMsg","خطا در آماده‌سازی پنل؛ صفحه را دوباره بارگذاری کنید.","error");} $("loginBtn").type="button";$("loginBtn").onclick=login;$("password").onkeydown=e=>{if(e.key==="Enter")login()};$("refreshAvg").onclick=loadAverage;$("avgMonthSelect").onchange=loadAverage;document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>renderList(b.dataset.view));restorePortalSession();$("logoutBtn").onclick=()=>{session=null;data=null;average=null;try{sessionStorage.removeItem("roselor_florist_session_v1")}catch(e){}$("portal").classList.add("hidden");$("login").classList.remove("hidden");$("password").value="";$("conn").textContent="ورود امن"};
 </script></html>
