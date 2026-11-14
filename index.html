@@ -1437,22 +1437,40 @@ html body #app .panel.average-panel .avg-person .avg-greenhouse strong .avg-numb
 
 
 <script>
-/* Register native Android FCM tokens against the currently authenticated Supabase user. */
+/* Reliable native FCM registration: retain the token until an authenticated session is ready. */
 (function(){
   if(window.__roselorFcmBridgeInstalled)return;
   window.__roselorFcmBridgeInstalled=true;
-  window.addEventListener("roselor-fcm-token",async function(event){
+  let pendingToken="",registering=false,lastAttempt=0,registeredToken="";
+  async function tryRegister(){
+    if(!pendingToken||registering||pendingToken===registeredToken)return;
+    if(typeof sess==="undefined"||!sess?.access_token||!sess?.user?.id)return;
+    if(Date.now()-lastAttempt<4000)return;
+    registering=true;lastAttempt=Date.now();
     try{
-      const token=String(event.detail&&event.detail.token||"");
-      if(!token||!window.RoselorAndroid)return;
-      if(typeof sess==="undefined"||!sess.access_token||!sess.user||!sess.user.id)return;
       const result=await req("/functions/v1/roselor-push",{
         method:"POST",
-        body:JSON.stringify({action:"register_fcm",token})
+        body:JSON.stringify({action:"register_fcm",token:pendingToken})
       });
-      if(!result||result.ok!==true)throw new Error(result&&result.error||"fcm_registration_failed");
-      console.info("Roselor Android push token registered and verified.");
-    }catch(error){console.warn("Roselor FCM token registration failed:",error&&error.message||error);}
+      if(!result||result.ok!==true||result.registered!==true)
+        throw new Error(result?.error||"fcm_registration_not_verified");
+      registeredToken=pendingToken;
+      pendingToken="";
+      console.info("Roselor FCM token registration verified by server.");
+      window.dispatchEvent(new CustomEvent("roselor-fcm-registration",{detail:{registered:true}}));
+    }catch(error){
+      console.warn("Roselor FCM token registration pending:",error?.message||error);
+    }finally{registering=false;}
+  }
+  window.addEventListener("roselor-fcm-token",function(event){
+    const token=String(event.detail?.token||"").trim();
+    if(token&&token.length>=40){pendingToken=token;tryRegister();}
   });
+  // A token event may arrive before login/session restoration. Retry after sess becomes available.
+  setInterval(tryRegister,2000);
+  // Ask the native layer for its current token on every page load, not only after the permission button.
+  setTimeout(function(){
+    try{if(window.RoselorAndroid&&typeof window.RoselorAndroid.requestFcmToken==="function")window.RoselorAndroid.requestFcmToken();}catch(e){console.warn("Native FCM token request failed:",e);}
+  },1200);
 })();
 </script>
