@@ -1476,7 +1476,13 @@ html body #app .panel.average-panel .avg-person .avg-greenhouse strong .avg-numb
   }
   window.addEventListener("roselor-fcm-token",function(event){
     const token=String(event.detail?.token||"").trim();
-    if(token&&token.length>=40){pendingToken=token;tryRegister();}
+    if(!token||token.length<40)return;
+    // The native token may already have been registered automatically before the user taps the button.
+    if(token===registeredToken){
+      window.dispatchEvent(new CustomEvent("roselor-fcm-registration",{detail:{registered:true,alreadyRegistered:true}}));
+      return;
+    }
+    pendingToken=token;tryRegister();
   });
   // A token event may arrive before login/session restoration. Retry after sess becomes available.
   setInterval(tryRegister,2000);
