@@ -1216,7 +1216,10 @@ body.invoices-page #invoices{max-width:100vw!important;overscroll-behavior-x:non
   document.body.appendChild(b);
   const app=document.getElementById("app");
   let active=false;
+  const nativeActivationKey="roselor_fcm_enabled_v1";
   function visibility(){b.style.display=app&&!app.classList.contains("hidden")&&!active?"block":"none";}
+  // Hide activation control on this device after server-confirmed FCM registration.
+  try{if(window.RoselorAndroid&&localStorage.getItem(nativeActivationKey)==="1")active=true;}catch(e){}
   if(app)new MutationObserver(visibility).observe(app,{attributes:true,attributeFilter:["class"]});
   function decodeKey(s){const pad="=".repeat((4-s.length%4)%4);const raw=atob((s+pad).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(raw,ch=>ch.charCodeAt(0));}
   async function checkSubscription(){
@@ -1245,7 +1248,9 @@ body.invoices-page #invoices{max-width:100vw!important;overscroll-behavior-x:non
         });
         b.disabled=false;
         if(registration){
-          b.textContent="اعلان اندروید فعال و دستگاه ثبت شد ✓";
+          active=true;
+          try{localStorage.setItem(nativeActivationKey,"1");}catch(e){}
+          visibility();
           alert("توکن FCM با موفقیت در سرور رز لر ثبت شد.");
         }else{
           b.textContent="مجوز فعال است؛ ثبت FCM ناموفق";
