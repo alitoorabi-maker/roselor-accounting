@@ -25,7 +25,7 @@ public class MainActivity extends Activity {
     private View splash;
 
     private static final String APP_URL =
-        "https://alitoorabi-maker.github.io/roselor-accounting/?v=10";
+        "https://alitoorabi-maker.github.io/roselor-accounting/?v=11";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
