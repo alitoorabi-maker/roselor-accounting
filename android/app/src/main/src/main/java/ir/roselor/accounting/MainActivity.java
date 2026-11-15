@@ -5,6 +5,7 @@ import android.Manifest;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.pm.PackageManager;
+import android.content.Intent;
 import android.os.Build;
 import android.webkit.JavascriptInterface;
 import com.google.firebase.messaging.FirebaseMessaging;
@@ -23,6 +24,7 @@ import android.webkit.WebViewClient;
 public class MainActivity extends Activity {
     private WebView webView;
     private View splash;
+    private String pendingNotificationSection = "";
 
     private static final String APP_URL =
         "https://alitoorabi-maker.github.io/roselor-accounting/?v=14";
@@ -30,6 +32,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        pendingNotificationSection = getIntent() != null ? getIntent().getStringExtra("notification_section") : "";
 
         FrameLayout root = new FrameLayout(this);
         webView = new WebView(this);
@@ -77,6 +80,7 @@ public class MainActivity extends Activity {
                     ((FrameLayout) splash.getParent()).removeView(splash);
                     splash = null;
                 }
+                dispatchPendingNotificationSection();
             }
         });
         webView.setWebChromeClient(new WebChromeClient());
@@ -88,6 +92,21 @@ public class MainActivity extends Activity {
         }
     }
 
+
+    private void dispatchPendingNotificationSection() {
+        if (pendingNotificationSection == null || pendingNotificationSection.isEmpty() || webView == null) return;
+        String safeSection = JSONObject.quote(pendingNotificationSection);
+        webView.evaluateJavascript("window.dispatchEvent(new CustomEvent('roselor-open-section',{detail:{section:" + safeSection + "}}));", null);
+        pendingNotificationSection = "";
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        pendingNotificationSection = intent != null ? intent.getStringExtra("notification_section") : "";
+        dispatchPendingNotificationSection();
+    }
 
     private static final int NOTIFICATION_PERMISSION_REQUEST = 4107;
     private static final String CHANNEL_ID = "roselor_general";
