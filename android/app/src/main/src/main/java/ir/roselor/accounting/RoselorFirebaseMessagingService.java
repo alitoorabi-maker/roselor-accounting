@@ -15,6 +15,24 @@ import com.google.firebase.messaging.RemoteMessage;
 public class RoselorFirebaseMessagingService extends FirebaseMessagingService {
     private static final String CHANNEL_ID = "roselor_general";
 
+    private String sectionName(String section) {
+        if (section == null) return "";
+        switch (section) {
+            case "balances": return "مانده مشتریان";
+            case "amb": return "تراکنش‌های مبهم";
+            case "ledger": return "گردش حساب بانکی";
+            case "bankRecon": return "مغایرت بانکی";
+            case "ship": return "بارهای بدون فاکتور";
+            case "harvest": return "آمار برداشت";
+            case "invoices": return "فاکتورها";
+            case "cash": return "ثبت گردش";
+            case "buckets": return "سطل‌های برگشتی";
+            case "vendors": return "فروشنده‌ها";
+            case "users": return "مدیریت کاربران";
+            default: return section.equals("home") ? "نمای کلی" : "";
+        }
+    }
+
     @Override
     public void onNewToken(@NonNull String token) {
         super.onNewToken(token);
@@ -31,6 +49,10 @@ public class RoselorFirebaseMessagingService extends FirebaseMessagingService {
             ? message.getNotification().getBody() : message.getData().get("body");
         if (title == null || title.trim().isEmpty()) title = "رز لر";
         if (body == null || body.trim().isEmpty()) body = "اعلان جدید دارید";
+        String section = message.getData().get("section");
+        String sectionLabel = message.getData().get("section_label");
+        if (sectionLabel == null || sectionLabel.trim().isEmpty()) sectionLabel = sectionName(section);
+        if (sectionLabel != null && !sectionLabel.trim().isEmpty()) title = title + " · " + sectionLabel;
 
         NotificationManager manager = getSystemService(NotificationManager.class);
         if (manager == null) return;
@@ -43,6 +65,7 @@ public class RoselorFirebaseMessagingService extends FirebaseMessagingService {
 
         Intent launch = new Intent(this, MainActivity.class);
         launch.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        if (section != null && !section.trim().isEmpty()) launch.putExtra("notification_section", section);
         PendingIntent pending = PendingIntent.getActivity(
             this, 0, launch,
             PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0)
