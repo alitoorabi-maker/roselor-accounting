@@ -61,7 +61,16 @@ public class MainActivity extends Activity {
         });
         web.setWebChromeClient(new WebChromeClient());
         root.addView(web, new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT
+            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
+        ));
+        TextView versionLabel = new TextView(this);
+        versionLabel.setText("نسخه " + BuildConfig.VERSION_NAME);
+        versionLabel.setTextColor(Color.rgb(151, 171, 157));
+        versionLabel.setTextSize(10);
+        versionLabel.setGravity(Gravity.CENTER);
+        versionLabel.setPadding(0, 3, 0, 5);
+        root.addView(versionLabel, new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         ));
         setContentView(root);
         web.loadUrl(PORTAL_URL);
