@@ -1,4 +1,4 @@
-name: Build Roselor Supervisor APK
+name: Build Roselor Manager APK
 on:
   workflow_dispatch:
   push:
@@ -26,10 +26,10 @@ jobs:
         working-directory: android
         run: |
           gradle assembleDebug
-          VERSION_NAME=$(sed -n "s/.*versionName '\\([^']*\\)'.*/\\1/p" app/build.gradle)
-          cp app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/roselor-supervisor-v${VERSION_NAME}.apk"
+          VERSION_NAME=$(sed -n "s/.*versionName '\([^']*\)'.*/\1/p" app/build.gradle)
+          cp app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/roselor-management-v${VERSION_NAME}.apk"
       - uses: actions/upload-artifact@v4
         with:
-          name: roselor-supervisor-v1.0.1
-          path: android/app/build/outputs/apk/debug/roselor-supervisor-v1.0.1.apk
+          name: roselor-management-v1.0.2
+          path: android/app/build/outputs/apk/debug/roselor-management-v1.0.2.apk
           retention-days: 30
