@@ -1070,7 +1070,7 @@ E("returnedBucketsList")?.addEventListener("click",async ev=>{const b=ev.target.
 E("navBuckets")?.addEventListener("click",loadBucketReturnApprovals);
 let bucketNotificationKnown=new Set<string>(),bucketNotificationPrimed=false;
 async function pollBucketReturnNotifications(){
- if(!currentAccess?.is_admin||!E("app")||E("app").classList.contains("hidden"))return;
+ if(!(currentAccess?.is_admin||isRoselorAdmin())||!E("app")||E("app").classList.contains("hidden"))return;
  try{
   const d=await api("pending_driver_bucket_returns");if(!d?.ok)return;
   const rows=Array.isArray(d.requests)?d.requests:[];
