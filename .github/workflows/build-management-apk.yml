@@ -47,3 +47,5 @@ jobs:
           name: roselor-management-signed-apk
           path: android/app/build/outputs/apk/release/app-release.apk
           retention-days: 30
+
+# Rebuild triggered for management notification persistence fix.
