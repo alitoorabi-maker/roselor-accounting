@@ -5,6 +5,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Build;
 
 import androidx.annotation.NonNull;
@@ -50,6 +51,10 @@ public class RoselorFirebaseMessagingService extends FirebaseMessagingService {
         if (title == null || title.trim().isEmpty()) title = "رز لر";
         if (body == null || body.trim().isEmpty()) body = "اعلان جدید دارید";
         String section = message.getData().get("section");
+        if (section == null || section.trim().isEmpty()) {
+            String notificationUrl = message.getData().get("url");
+            if (notificationUrl != null) section = Uri.parse(notificationUrl).getQueryParameter("section");
+        }
         String sectionLabel = message.getData().get("section_label");
         if (sectionLabel == null || sectionLabel.trim().isEmpty()) sectionLabel = sectionName(section);
         if (sectionLabel != null && !sectionLabel.trim().isEmpty()) title = title + " · " + sectionLabel;
