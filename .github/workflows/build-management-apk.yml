@@ -44,10 +44,14 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: gradle assembleRelease
+      - name: Verify APK version and signature
+        run: |
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" | grep -F "versionCode='18' versionName='1.0.18'"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$APK"
       - uses: actions/upload-artifact@v4
         with:
-          name: roselor-management-signed-apk
+          name: roselor-management-v18-signed-apk
           path: android/app/build/outputs/apk/release/app-release.apk
           retention-days: 30
-
-# Rebuild triggered for management notification persistence fix.
