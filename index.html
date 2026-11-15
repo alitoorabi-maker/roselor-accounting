@@ -1068,7 +1068,7 @@ async function loadReturnedBuckets(){if(!E("returnedBucketsList"))return;try{con
 E("reloadReturnedBuckets")?.addEventListener("click",loadReturnedBuckets);
 E("returnedBucketsList")?.addEventListener("click",async ev=>{const b=ev.target.closest("[data-delete-driver-bucket]");if(!b)return;if(!confirm("این ثبت برگشت سطل حذف شود؟"))return;b.disabled=true;try{const d=await api("delete_driver_bucket_ledger",{ledger_id:b.dataset.deleteDriverBucket});if(!d?.ok||d.verified!==true)throw Error(d?.error||"حذف تأیید نشد");await loadReturnedBuckets();}catch(e){alert("حذف انجام نشد: "+(e.message||e));b.disabled=false;}});
 E("navBuckets")?.addEventListener("click",loadBucketReturnApprovals);
-let bucketNotificationKnown=new Set<string>(),bucketNotificationPrimed=false;
+let bucketNotificationKnown=new Set(),bucketNotificationPrimed=false;
 async function pollBucketReturnNotifications(){
  if(!(currentAccess?.is_admin||isRoselorAdmin())||!E("app")||E("app").classList.contains("hidden"))return;
  try{
