@@ -50,6 +50,7 @@ async function registerPendingSupervisorFcmToken(){
   if(!result||result.ok!==true||result.registered!==true)throw Error(result?.error||"ثبت توکن در سرور تأیید نشد.");
   pendingSupervisorFcmToken="";
   setSupervisorNotificationRegistered();
+  window.dispatchEvent(new CustomEvent("roselor-fcm-registration",{detail:{registered:true}}));
  }catch(error){supervisorNotificationMessage("ثبت اعلان ناموفق بود: "+(error?.message||error));}
  finally{supervisorFcmRegistering=false;}
 }
