@@ -185,7 +185,7 @@ public class MainActivity extends Activity {
                     dispatchNotificationPermission(false);
                     return;
                 }
-                requestFcmToken();
+                MainActivity.this.requestFcmToken();
             });
         }
     }
