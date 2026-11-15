@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'android/**'
+      - 'driver.html'
       - '.github/workflows/build-driver-apk.yml'
 permissions:
   contents: read
