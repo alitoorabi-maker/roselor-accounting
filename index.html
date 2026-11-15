@@ -1068,6 +1068,30 @@ async function loadReturnedBuckets(){if(!E("returnedBucketsList"))return;try{con
 E("reloadReturnedBuckets")?.addEventListener("click",loadReturnedBuckets);
 E("returnedBucketsList")?.addEventListener("click",async ev=>{const b=ev.target.closest("[data-delete-driver-bucket]");if(!b)return;if(!confirm("این ثبت برگشت سطل حذف شود؟"))return;b.disabled=true;try{const d=await api("delete_driver_bucket_ledger",{ledger_id:b.dataset.deleteDriverBucket});if(!d?.ok||d.verified!==true)throw Error(d?.error||"حذف تأیید نشد");await loadReturnedBuckets();}catch(e){alert("حذف انجام نشد: "+(e.message||e));b.disabled=false;}});
 E("navBuckets")?.addEventListener("click",loadBucketReturnApprovals);
+let bucketNotificationKnown=new Set<string>(),bucketNotificationPrimed=false;
+async function pollBucketReturnNotifications(){
+ if(!currentAccess?.is_admin||!E("app")||E("app").classList.contains("hidden"))return;
+ try{
+  const d=await api("pending_driver_bucket_returns");if(!d?.ok)return;
+  const rows=Array.isArray(d.requests)?d.requests:[];
+  pendingBucketReturnCount=rows.length;refreshBucketsPendingBadge();
+  const ids=new Set(rows.map(r=>String(r.id)));
+  if(bucketNotificationPrimed){
+   const fresh=rows.filter(r=>!bucketNotificationKnown.has(String(r.id)));
+   for(const r of fresh){
+    const title="درخواست سطل برگشتی جدید";
+    const body=String(r.driver_name||"راننده")+" · "+(r.greenhouse==="azna"?"ازنا":"خرم‌آباد")+" · "+Number(r.bucket_count||0).toLocaleString("fa-IR")+" سطل";
+    if(typeof Notification!=="undefined"&&Notification.permission==="granted"){try{new Notification(title,{body,tag:"bucket-return-"+r.id});}catch{}}
+    let toast=E("bucketReturnNotificationToast");
+    if(!toast){toast=document.createElement("div");toast.id="bucketReturnNotificationToast";toast.style.cssText="position:fixed;z-index:999999;top:14px;right:12px;left:12px;padding:14px 16px;border:1px solid #c9a64b;border-radius:14px;background:#08291f;color:#f7e6ae;box-shadow:0 8px 28px #0008;font-weight:700;text-align:right";document.body.appendChild(toast);}
+    toast.textContent=title+" — "+body;toast.style.display="block";setTimeout(()=>{toast.style.display="none"},9000);
+   }
+  }
+  bucketNotificationKnown=ids;bucketNotificationPrimed=true;
+ }catch(e){}
+}
+if(!window._roselorBucketNotifyTimer)window._roselorBucketNotifyTimer=setInterval(pollBucketReturnNotifications,15000);
+
 document.querySelector('[data-tab="ship"]')?.addEventListener("click",loadDeliveryConfirmations);
 E("toggleDriverBucketReturn")?.addEventListener("click",()=>{const p=E("driverBucketReturnPanel");if(p)p.classList.toggle("hidden");});
 E("cancelDriverBucketReturn")?.addEventListener("click",()=>E("driverBucketReturnPanel")?.classList.add("hidden"));
