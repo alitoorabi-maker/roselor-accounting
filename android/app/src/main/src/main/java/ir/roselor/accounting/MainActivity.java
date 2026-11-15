@@ -27,7 +27,7 @@ public class MainActivity extends Activity {
     private String pendingNotificationSection = "";
 
     private static final String APP_URL =
-        "https://alitoorabi-maker.github.io/roselor-accounting/?v=17";
+        "https://alitoorabi-maker.github.io/roselor-accounting/?v=18";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
