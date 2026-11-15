@@ -64,7 +64,7 @@ public class MainActivity extends Activity {
             LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
         ));
         TextView versionLabel = new TextView(this);
-        versionLabel.setText("نسخه " + "1.0.1");
+        versionLabel.setText("مدیریت رز لر | نسخه 1.0.2");
         versionLabel.setTextColor(Color.rgb(151, 171, 157));
         versionLabel.setTextSize(10);
         versionLabel.setGravity(Gravity.CENTER);
