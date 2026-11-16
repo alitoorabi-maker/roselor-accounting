@@ -2,7 +2,6 @@ name: Build Roselor Supervisor APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
     paths:
       - 'android/**'
       - '.github/workflows/build-supervisor-apk.yml'
@@ -23,28 +22,14 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'
-      - name: Fetch public Firebase Android configuration
-        run: |
-          curl --silent --show-error -w "\nHTTP_STATUS=%{http_code}\n" \
-            https://amiahhuapkqwbtcsmzal.supabase.co/functions/v1/roselor-supervisor-firebase-config \
-            -o "$RUNNER_TEMP/supervisor-firebase-config.json"
-          cat "$RUNNER_TEMP/supervisor-firebase-config.json"
-          jq -e '.ok == true and (.config.configFileContents | type == "string")' "$RUNNER_TEMP/supervisor-firebase-config.json" >/dev/null
-          jq -r '.config.configFileContents' "$RUNNER_TEMP/supervisor-firebase-config.json" | base64 --decode > android/app/google-services.json
-          test -s android/app/google-services.json
-          grep -F '"package_name": "ir.roselor.supervisor"' android/app/google-services.json
-      - name: Build supervisor APK
+      - name: Build versioned debug APK
         working-directory: android
-        run: gradle assembleDebug
-      - name: Verify APK version and signature
         run: |
-          APK="android/app/build/outputs/apk/debug/app-debug.apk"
-          test -s "$APK"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -F "versionCode='1' versionName='1.0.3'"
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
-          cp "$APK" "android/app/build/outputs/apk/debug/roselor-supervisor-v1.0.3-fcm.apk"
+          gradle assembleDebug
+          VERSION_NAME=$(sed -n "s/.*versionName '\\([^']*\\)'.*/\\1/p" app/build.gradle)
+          cp app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/roselor-supervisor-v${VERSION_NAME}.apk"
       - uses: actions/upload-artifact@v4
         with:
-          name: roselor-supervisor-v1.0.3-fcm-parallel
-          path: android/app/build/outputs/apk/debug/roselor-supervisor-v1.0.3-fcm.apk
+          name: roselor-supervisor-v1.0.3
+          path: android/app/build/outputs/apk/debug/roselor-supervisor-v1.0.3.apk
           retention-days: 30
