@@ -87,7 +87,7 @@ public class MainActivity extends Activity {
         web.setWebChromeClient(new WebChromeClient());
         root.addView(web, new LinearLayout.LayoutParams(-1, 0, 1f));
         TextView version = new TextView(this);
-        version.setText("رز لر | گل‌فروش · نسخه 1.0.1");
+        version.setText("رز لر | گل‌فروش · نسخه 1.0.2");
         version.setTextColor(Color.rgb(151,171,157));
         version.setTextSize(10);
         version.setGravity(Gravity.CENTER);
