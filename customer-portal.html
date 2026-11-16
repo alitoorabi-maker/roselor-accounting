@@ -107,11 +107,21 @@ const BASE="https://amiahhuapkqwbtcsmzal.supabase.co",KEY="sb_publishable_Pmkqa_
 const $=id=>document.getElementById(id),esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])),fmt=v=>new Intl.NumberFormat("fa-IR").format(Math.round(Number(v||0))),date=v=>{if(v===null||v===undefined||v==="")return "—";try{const raw=String(v).trim();let d;if(/^\d{4}-\d{2}-\d{2}$/.test(raw)){const [y,m,day]=raw.split("-").map(Number);d=new Date(Date.UTC(y,m-1,day,12,0,0));}else{d=new Date(raw);if(!Number.isFinite(d.getTime()))return "—";}return new Intl.DateTimeFormat("fa-IR-u-ca-persian",{calendar:"persian",numberingSystem:"arabext",year:"numeric",month:"2-digit",day:"2-digit",timeZone:"Asia/Tehran"}).format(d)}catch{return "—"}},status=(id,msg,kind)=>{$(id).className="status "+kind;$(id).textContent=msg};
 async function req(path,opts={}){const h={apikey:KEY,"Content-Type":"application/json",...(opts.headers||{})};if(session?.access_token)h.Authorization="Bearer "+session.access_token;const r=await fetch(BASE+path,{...opts,headers:h}),d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.msg||d.message||d.error||("خطای سرویس "+r.status));return d}
 async function portalApi(action,more={}){return req("/functions/v1/roselor-customer-portal",{method:"POST",body:JSON.stringify({action,...more})})}
-function showPortal(d){data=d;document.querySelector(".wrap").classList.add("portal-signed-in");$("login").classList.add("hidden");$("portal").classList.remove("hidden");$("conn").classList.add("hidden");$("customerName").textContent="جناب آقای "+d.customer.name+" خوش آمدید";renderSummary();loadAverage();renderList("invoices");$("enablePushBtn").onclick=enablePortalPush;syncPortalPushButton()}
+function showPortal(d){data=d;document.querySelector(".wrap").classList.add("portal-signed-in");$("login").classList.add("hidden");$("portal").classList.remove("hidden");$("conn").classList.add("hidden");$("customerName").textContent="جناب آقای "+d.customer.name+" خوش آمدید";renderSummary();loadAverage();renderList("invoices");$("enablePushBtn").onclick=enablePortalPush;syncPortalPushButton();if(window.RoselorAndroid&&localStorage.getItem("roselor_customer_fcm_enabled_"+String(d.customer.id))==="1"&&typeof window.RoselorAndroid.requestFcmToken==="function")window.RoselorAndroid.requestFcmToken()}
 async function login(){const b=$("loginBtn");b.disabled=true;try{session=await req("/functions/v1/roselor-customer-login",{method:"POST",body:JSON.stringify({username:$("username").value.trim().toLowerCase(),password:$("password").value})});const d=await portalApi("portal_data");if(!d.verified||!d.customer)throw Error("این حساب به پنل گل‌فروش متصل نیست. با رز لر تماس بگیرید.");try{sessionStorage.setItem("roselor_florist_session_v1",JSON.stringify(session))}catch(e){}showPortal(d)}catch(e){session=null;try{sessionStorage.removeItem("roselor_florist_session_v1")}catch(x){}status("loginMsg",e.message,"error")}finally{b.disabled=false}}
 async function restorePortalSession(){let saved=null;try{saved=sessionStorage.getItem("roselor_florist_session_v1")}catch(e){}if(!saved)return;try{session=JSON.parse(saved);if(!session||!session.access_token)throw Error("نشست معتبر نیست");const d=await portalApi("portal_data");if(!d.verified||!d.customer)throw Error("نشست تأیید نشد");showPortal(d)}catch(e){session=null;try{sessionStorage.removeItem("roselor_florist_session_v1")}catch(x){}$("portal").classList.add("hidden");$("login").classList.remove("hidden")}}
 
 if("serviceWorker" in navigator && location.protocol==="https:"){navigator.serviceWorker.register("./service-worker.js",{scope:"./"}).catch(e=>console.warn("Roselor customer service worker failed",e));}
+window.addEventListener("roselor-fcm-token",async e=>{
+ const customerId=data?.customer?.id;if(!customerId)return;
+ const key="roselor_customer_fcm_enabled_"+String(customerId);
+ if(localStorage.getItem(key)!=="1")return;
+ const token=String(e.detail?.token||"");if(token.length<40)return;
+ try{
+  const saved=await req("/functions/v1/roselor-push",{method:"POST",body:JSON.stringify({action:"register_fcm",customer_id:String(customerId),token})});
+  if(!saved.ok||!saved.registered)throw Error(saved.error||"ثبت توکن جدید تأیید نشد.");
+ }catch(err){console.warn("Roselor florist FCM token refresh registration failed",err)}
+});
 async function syncPortalPushButton(){
  const b=$("enablePushBtn");if(!b)return;
  if(window.RoselorAndroid){
