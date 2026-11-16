@@ -40,11 +40,11 @@ jobs:
         run: |
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -F "versionCode='4' versionName='1.0.3'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -F "versionCode='1' versionName='1.0.3'"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
-          cp "$APK" "android/app/build/outputs/apk/debug/roselor-supervisor-v1.0.3.apk"
+          cp "$APK" "android/app/build/outputs/apk/debug/roselor-supervisor-v1.0.3-fcm.apk"
       - uses: actions/upload-artifact@v4
         with:
-          name: roselor-supervisor-v1.0.3-fcm
-          path: android/app/build/outputs/apk/debug/roselor-supervisor-v1.0.3.apk
+          name: roselor-supervisor-v1.0.3-fcm-parallel
+          path: android/app/build/outputs/apk/debug/roselor-supervisor-v1.0.3-fcm.apk
           retention-days: 30
