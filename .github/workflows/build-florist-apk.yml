@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'android-florist/**'
+      - 'roselor-icon.svg'
       - '.github/workflows/build-florist-apk.yml'
 permissions:
   contents: read
@@ -22,13 +23,24 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'
+      - name: Prepare original Roselor logo assets
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y librsvg2-bin
+          mkdir -p android-florist/app/src/main/res/drawable-nodpi
+          rsvg-convert -w 512 -h 512 roselor-icon.svg > android-florist/app/src/main/res/drawable-nodpi/roselor_logo.png
+          for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            mkdir -p "android-florist/app/src/main/res/mipmap-$density"
+            rsvg-convert -w 192 -h 192 roselor-icon.svg > "android-florist/app/src/main/res/mipmap-$density/ic_launcher.png"
+            cp "android-florist/app/src/main/res/mipmap-$density/ic_launcher.png" "android-florist/app/src/main/res/mipmap-$density/ic_launcher_round.png"
+          done
       - name: Build florist APK
         working-directory: android-florist
         run: |
           gradle assembleDebug
-          cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/roselor-florist-v1.0.0.apk
+          cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/roselor-florist-v1.0.1.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: roselor-florist-v1.0.0
-          path: android-florist/app/build/outputs/apk/debug/roselor-florist-v1.0.0.apk
+          name: roselor-florist-v1.0.1
+          path: android-florist/app/build/outputs/apk/debug/roselor-florist-v1.0.1.apk
           retention-days: 30
