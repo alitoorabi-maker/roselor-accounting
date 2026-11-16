@@ -1,7 +1,7 @@
 
 <style>
 .persian-calendar-popup{position:fixed;z-index:99999;width:272px;background:#102f27;color:#fff;border:1px solid #c9a64b;border-radius:14px;padding:10px;box-shadow:0 10px 32px #0005;direction:rtl;font-family:inherit}
-.persian-calendar-popup.hidden{display:none}.pc-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}.pc-head button,.pc-day{border:1px solid #c9a64b;background:#174638;color:#fff;border-radius:8px;padding:6px 10px;font:inherit}.pc-week,.pc-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center}.pc-week{margin-bottom:5px;color:#e0c56e}.pc-day{padding:7px 0;cursor:pointer}.pc-day:hover{background:#c9a64b;color:#102f27}.pc-empty{min-height:30px}.shipment-date-open{margin-inline-start:6px}
+.persian-calendar-popup.hidden{display:none}.pc-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}.pc-head button,.pc-day{border:1px solid #c9a64b;background:#174638;color:#fff;border-radius:8px;padding:6px 10px;font:inherit}.pc-week,.pc-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center}.pc-week{margin-bottom:5px;color:#e0c56e}.pc-day{padding:7px 0;cursor:pointer}.pc-day:hover{background:#c9a64b;color:#102f27}.pc-day.pc-today{background:#f0cf65!important;color:#102f27!important;border:2px solid #fff0b0!important;font-weight:900!important;box-shadow:0 0 0 2px #c9a64b,0 0 12px #f0cf6580!important;position:relative}.pc-day.pc-today:after{content:"";position:absolute;width:5px;height:5px;border-radius:50%;background:#102f27;bottom:3px;left:50%;transform:translateX(-50%)}.pc-empty{min-height:30px}.shipment-date-open{margin-inline-start:6px}
 
 /* Enforce the assigned greenhouse in the visible interface; server-side checks remain authoritative. */
 body:not(.can-see-azna) .avg-person .avg-greenhouse:nth-child(3){display:none!important}
@@ -968,8 +968,9 @@ function renderPersianCalendar(){
  let first=jalaliToGregorian(s.y,s.m,1),dow=(new Date(Date.UTC(first.year,first.month-1,first.day)).getUTCDay()+1)%7;
  let days=s.m<=6?31:s.m<=11?30:(jalaliToGregorian(s.y+1,1,1).year-jalaliToGregorian(s.y,12,1).year===1?29:29);
  if(s.m===12){let next=jalaliToGregorian(s.y+1,1,1),last=jalaliToGregorian(s.y,12,29);days=(Date.UTC(next.year,next.month-1,next.day)-Date.UTC(last.year,last.month-1,last.day))/86400000===1?29:30;}
+ const today=currentJalaliParts();
  let cells=Array(dow).fill('<span class="pc-empty"></span>');
- for(let d=1;d<=days;d++)cells.push('<button type="button" class="pc-day" data-jday="'+d+'">'+d.toLocaleString("fa-IR")+'</button>');
+ for(let d=1;d<=days;d++){const isToday=s.y===today.y&&s.m===today.m&&d===today.d;cells.push('<button type="button" class="pc-day'+(isToday?' pc-today':'')+'" data-jday="'+d+'"'+(isToday?' aria-current="date" title="امروز"':'')+' >'+d.toLocaleString("fa-IR")+'</button>');}
  pop.innerHTML='<div class="pc-head"><button type="button" data-pc="prev" aria-label="ماه قبل">‹</button><strong>'+names[s.m-1]+' '+s.y.toLocaleString("fa-IR")+'</strong><button type="button" data-pc="next" aria-label="ماه بعد">›</button></div><div class="pc-week">'+["ش","ی","د","س","چ","پ","ج"].map(x=>'<span>'+x+'</span>').join("")+'</div><div class="pc-grid">'+cells.join("")+'</div>';
  pop.querySelector('[data-pc="prev"]').onclick=()=>{if(--s.m<1){s.m=12;s.y--}renderPersianCalendar()};
  pop.querySelector('[data-pc="next"]').onclick=()=>{if(++s.m>12){s.m=1;s.y++}renderPersianCalendar()};
