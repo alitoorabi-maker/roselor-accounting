@@ -25,9 +25,10 @@ jobs:
           gradle-version: '8.11.1'
       - name: Fetch public Firebase Android configuration
         run: |
-          curl --fail --silent --show-error \
+          curl --silent --show-error -w "\nHTTP_STATUS=%{http_code}\n" \
             https://amiahhuapkqwbtcsmzal.supabase.co/functions/v1/roselor-supervisor-firebase-config \
             -o "$RUNNER_TEMP/supervisor-firebase-config.json"
+          cat "$RUNNER_TEMP/supervisor-firebase-config.json"
           jq -e '.ok == true and (.config.configFileContents | type == "string")' "$RUNNER_TEMP/supervisor-firebase-config.json" >/dev/null
           jq -r '.config.configFileContents' "$RUNNER_TEMP/supervisor-firebase-config.json" | base64 --decode > android/app/google-services.json
           test -s android/app/google-services.json
