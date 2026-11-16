@@ -100,7 +100,7 @@
 <div id="leaderboardContent"><div class="leader-empty">برای نمایش رتبه‌بندی، ماه را انتخاب کنید.</div></div>
 <div class="leader-note">مبنای رتبه‌بندی: مبلغ ناخالص فاکتورهای تأییدشده تقسیم بر تعداد دسته، به تفکیک گلخانه. نام سایر همکاران به‌صورت مستعار نمایش داده می‌شود.</div>
 </section>
-<div class="tabs"><button class="active" data-view="invoices">فاکتورهای من</button><button data-view="payments">پرداخت‌های من</button><button data-view="shipments">بارهای من</button><button data-view="ledger">گردش حساب</button></div>
+<div class="tabs"><button class="active" data-view="invoices">فاکتورهای من</button><button data-view="payments">پرداخت‌های من</button><button data-view="shipments">بارهای بدون فاکتور</button><button data-view="ledger">گردش حساب</button></div>
 <section class="panel"><h2 class="title" id="listTitle">فاکتورهای من</h2><div id="listContent" class="muted">در حال دریافت اطلاعات…</div></section></main><div class="footer portal-actions"><button id="enablePushBtn" class="btn ghost" type="button">فعال‌سازی اعلان‌ها 🔔</button><button id="logoutBtn" class="btn ghost">خروج امن</button><div>ROSELOR · حسابداری گلخانه‌ها · ریال</div><a class="instagram-link" href="https://www.instagram.com/_roselor/" target="_blank" rel="noopener noreferrer" aria-label="اینستاگرام رز لر">اینستاگرام: @_roselor</a></div></div>
 <script>
 const BASE="https://amiahhuapkqwbtcsmzal.supabase.co",KEY="sb_publishable_Pmkqa_CAi9O_jZQDBt4aHA_FSgikXZu";let session=null,data=null,average=null;
@@ -306,7 +306,7 @@ async function loadAverage(){
   }
 }
 function renderList(view){
-const names={invoices:"فاکتورهای من",payments:"پرداخت‌های من",shipments:"بارهای من",ledger:"گردش حساب"};
+const names={invoices:"فاکتورهای من",payments:"پرداخت‌های من",shipments:"بارهای بدون فاکتور",ledger:"گردش حساب"};
 $("listTitle").textContent=names[view];
 document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
 let rows=[],items="";
