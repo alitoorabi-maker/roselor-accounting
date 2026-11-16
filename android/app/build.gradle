@@ -7,10 +7,10 @@ android {
     namespace 'ir.roselor.supervisor'
     compileSdk 35
     defaultConfig {
-        applicationId 'ir.roselor.supervisor'
+        applicationId 'ir.roselor.supervisor.fcm'
         minSdk 23
         targetSdk 35
-        versionCode 4
+        versionCode 1
         versionName '1.0.3'
     }
 }
