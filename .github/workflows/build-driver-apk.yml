@@ -1,0 +1,51 @@
+name: Build Roselor Driver APK
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'android-driver/**'
+      - 'icons/original-logo/roselor-icon-192.png'
+      - '.github/workflows/build-driver-apk.yml'
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Verify Firebase Android app configuration
+        run: |
+          test -s android-driver/app/google-services.json || { echo "::error::Add google-services.json for Firebase Android package ir.roselor.driver at android-driver/app/google-services.json"; exit 1; }
+      - name: Prepare original Roselor logo assets
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+          mkdir -p android-driver/app/src/main/res/drawable-nodpi
+          cp icons/original-logo/roselor-icon-192.png android-driver/app/src/main/res/drawable-nodpi/roselor_logo.png
+          for spec in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            density="${spec%%:*}"
+            size="${spec##*:}"
+            mkdir -p "android-driver/app/src/main/res/mipmap-$density"
+            convert icons/original-logo/roselor-icon-192.png -resize "${size}x${size}" "android-driver/app/src/main/res/mipmap-$density/ic_launcher.png"
+            cp "android-driver/app/src/main/res/mipmap-$density/ic_launcher.png" "android-driver/app/src/main/res/mipmap-$density/ic_launcher_round.png"
+          done
+      - name: Build driver APK
+        working-directory: android-driver
+        run: |
+          gradle assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/roselor-driver-v1.0.0.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: roselor-driver-v1.0.0
+          path: android-driver/app/build/outputs/apk/debug/roselor-driver-v1.0.0.apk
+          retention-days: 30
