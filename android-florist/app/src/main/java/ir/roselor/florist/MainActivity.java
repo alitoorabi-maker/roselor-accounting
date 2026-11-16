@@ -8,14 +8,15 @@ import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.Gravity;
+import android.view.View;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebChromeClient;
-import android.view.Gravity;
-import android.widget.LinearLayout;
-import android.widget.TextView;
-import android.widget.Button;
 import com.google.firebase.messaging.FirebaseMessaging;
 
 public class MainActivity extends Activity {
@@ -24,6 +25,7 @@ public class MainActivity extends Activity {
     private static MainActivity active;
     private WebView web;
     private LinearLayout root;
+    private View splash;
     private static final String PORTAL_URL = "https://alitoorabi-maker.github.io/roselor-accounting/customer-portal.html";
 
     @Override public void onCreate(Bundle state) {
@@ -32,10 +34,38 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(Color.rgb(6,26,18));
         getWindow().setNavigationBarColor(Color.rgb(6,26,18));
         createNotificationChannel();
+
         root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(Color.rgb(6,26,18));
+
+        LinearLayout splashLayout = new LinearLayout(this);
+        splashLayout.setOrientation(LinearLayout.VERTICAL);
+        splashLayout.setGravity(Gravity.CENTER);
+        splashLayout.setBackgroundColor(Color.rgb(6,26,18));
+        ImageView logo = new ImageView(this);
+        logo.setImageResource(R.drawable.roselor_logo);
+        logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(176), dp(176));
+        splashLayout.addView(logo, logoParams);
+        TextView brand = new TextView(this);
+        brand.setText("رز لر");
+        brand.setTextColor(Color.rgb(243,196,91));
+        brand.setTextSize(25);
+        brand.setGravity(Gravity.CENTER);
+        brand.setPadding(0, dp(14), 0, dp(4));
+        splashLayout.addView(brand);
+        TextView role = new TextView(this);
+        role.setText("سامانه گل‌فروش");
+        role.setTextColor(Color.rgb(190,205,194));
+        role.setTextSize(14);
+        role.setGravity(Gravity.CENTER);
+        splashLayout.addView(role);
+        splash = splashLayout;
+        root.addView(splash, new LinearLayout.LayoutParams(-1, -1));
+
         web = new WebView(this);
+        web.setVisibility(View.GONE);
         web.getSettings().setJavaScriptEnabled(true);
         web.getSettings().setDomStorageEnabled(true);
         web.getSettings().setDatabaseEnabled(true);
@@ -45,6 +75,11 @@ public class MainActivity extends Activity {
         web.setWebViewClient(new WebViewClient() {
             @Override public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
+                if (splash != null) {
+                    root.removeView(splash);
+                    splash = null;
+                    web.setVisibility(View.VISIBLE);
+                }
                 String token = getSharedPreferences("roselor_florist", MODE_PRIVATE).getString("fcm_token", "");
                 if (token != null && !token.isEmpty()) dispatchToken(token);
             }
@@ -52,7 +87,7 @@ public class MainActivity extends Activity {
         web.setWebChromeClient(new WebChromeClient());
         root.addView(web, new LinearLayout.LayoutParams(-1, 0, 1f));
         TextView version = new TextView(this);
-        version.setText("رز لر | گل‌فروش · نسخه 1.0.0");
+        version.setText("رز لر | گل‌فروش · نسخه 1.0.1");
         version.setTextColor(Color.rgb(151,171,157));
         version.setTextSize(10);
         version.setGravity(Gravity.CENTER);
@@ -61,6 +96,8 @@ public class MainActivity extends Activity {
         setContentView(root);
         web.loadUrl(PORTAL_URL);
     }
+
+    private int dp(int value) { return (int)(value * getResources().getDisplayMetrics().density + 0.5f); }
 
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
