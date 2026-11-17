@@ -141,8 +141,8 @@ Deno.serve(async (req: Request) => {
     if(!customerId||!["shipments","balance","followup"].includes(template))return send({ok:false,error:"invalid_sms_template_input"},400);
     const customers=await get("customers?select=id,name,phone,is_active&id=eq."+encodeURIComponent(customerId)+"&is_active=eq.true&limit=1");
     const customer=Array.isArray(customers)?customers[0]:null;
-    const phone=String(customer?.phone||"").replace(/[\\s-]/g,"");
-    if(!customer||!/^09\\d{9}$/.test(phone))return send({ok:false,error:"sms_customer_not_found_or_invalid_phone"},404);
+    const phone=String(customer?.phone||"").replace(/[\s-]/g,"");
+    if(!customer||!/^09\d{9}$/.test(phone))return send({ok:false,error:"sms_customer_not_found_or_invalid_phone"},404);
     const [shipments,invoices,balances]=await Promise.all([
       get("shipments?select=id,greenhouse,quantity_bundles,shipped_at,status&customer_id=eq."+encodeURIComponent(customerId)+"&status=not.in.(cancelled,rejected)&order=shipped_at.asc&limit=5000"),
       get("invoices?select=shipment_id"),
@@ -158,9 +158,9 @@ Deno.serve(async (req: Request) => {
     const balanceLine="مانده کل حساب: "+fa(total)+" ریال";
     const intro="مشتری گرامی "+String(customer.name||"")+"،";
     let message="";
-    if(template==="shipments")message=intro+"\\nبارهای ثبت‌شده بدون فاکتور شما:"+(shipmentLines.length?"\\n"+shipmentLines.join("\\n"):"\\nموردی ثبت نشده است.");
-    if(template==="balance")message=intro+"\\n"+balanceLine;
-    if(template==="followup")message=intro+"\\nبارهای ثبت‌شده بدون فاکتور:"+(shipmentLines.length?"\\n"+shipmentLines.join("\\n"):"\\nموردی ثبت نشده است.")+"\\n"+balanceLine;
+    if(template==="shipments")message=intro+"\nبارهای ثبت‌شده بدون فاکتور شما:"+(shipmentLines.length?"\n"+shipmentLines.join("\n"):"\nموردی ثبت نشده است.");
+    if(template==="balance")message=intro+"\n"+balanceLine;
+    if(template==="followup")message=intro+"\nبارهای ثبت‌شده بدون فاکتور:"+(shipmentLines.length?"\n"+shipmentLines.join("\n"):"\nموردی ثبت نشده است.")+"\n"+balanceLine;
     if(body.send===true)return send({ok:false,error:"sms_queue_submission_not_available_in_this_action"},501);
     return reply(req,{ok:true,verified:true,customer:{id:customer.id,name:customer.name,phone},message,shipment_count:pending.length,total_balance_rial:total});
   }
