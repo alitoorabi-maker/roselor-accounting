@@ -57,7 +57,7 @@ Deno.serve(async (req: Request) => {
   const metadataAdmin=meta.accounting_admin===true || meta.role==="admin";
   let body:any; try { body=await req.json(); } catch { return send({ok:false,error:"invalid_json"},400); }
   const action=body.action;
-  const allowed=["my_access","overview","customer_balances","customer_ledger","customer_ledger_event_detail","create_customer_discount_adjustment","create_customer_balance_adjustment","transfer_customer_balance","transaction_ledger","unmatched_transactions","shipments_without_invoice","monthly_sales_monitor","bank_balance_reconciliation","create_invoice_for_shipment","pending_supervisor_invoices","approve_supervisor_invoice","create_shipment","customer_contract_options","delete_shipment","shipment_form_options","reconcile_deposit","reconcile_withdrawal","create_bank_reconciliation_adjustment","vendor_options","create_vendor","update_vendor","daily_harvest_summary","cold_storage_summary","delete_daily_harvest","monthly_shipment_summary","returned_buckets","create_returned_bucket","driver_bucket_ledger","delete_driver_bucket_ledger","create_driver_bucket_return","pending_driver_bucket_returns","review_driver_bucket_return","driver_freight_requests","review_driver_freight_request","pending_supervisor_shipments","review_supervisor_shipment","pending_supervisor_harvests","review_supervisor_harvest","driver_delivery_confirmations","save_daily_harvest","supervisor_bucket_form_options","supervisor_bucket_requests","submit_supervisor_bucket_return","customer_sms_customers","customer_sms_history","customer_sms_template"];
+  const allowed=["my_access","overview","customer_balances","customer_ledger","customer_ledger_event_detail","create_customer_discount_adjustment","create_customer_balance_adjustment","delete_customer_account_adjustment","transfer_customer_balance","transaction_ledger","unmatched_transactions","shipments_without_invoice","monthly_sales_monitor","bank_balance_reconciliation","create_invoice_for_shipment","pending_supervisor_invoices","approve_supervisor_invoice","create_shipment","customer_contract_options","delete_shipment","shipment_form_options","reconcile_deposit","reconcile_withdrawal","create_bank_reconciliation_adjustment","vendor_options","create_vendor","update_vendor","daily_harvest_summary","cold_storage_summary","delete_daily_harvest","monthly_shipment_summary","returned_buckets","create_returned_bucket","driver_bucket_ledger","delete_driver_bucket_ledger","create_driver_bucket_return","pending_driver_bucket_returns","review_driver_bucket_return","driver_freight_requests","review_driver_freight_request","pending_supervisor_shipments","review_supervisor_shipment","pending_supervisor_harvests","review_supervisor_harvest","driver_delivery_confirmations","save_daily_harvest","supervisor_bucket_form_options","supervisor_bucket_requests","submit_supervisor_bucket_return","customer_sms_customers","customer_sms_history","customer_sms_template"];
   if(!allowed.includes(action)) return send({ok:false,error:"unsupported_action",allowed},400);
   const key=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if(!key) return send({ok:false,error:"server_configuration_missing"},500);
@@ -640,6 +640,25 @@ Deno.serve(async (req: Request) => {
       if(!summary||!ledger||ledger.customer_id!==customerId||ledger.greenhouse!==greenhouse||Number(ledger.debit_rial)!==expectedDebit||Number(ledger.credit_rial)!==expectedCredit||ledger.source_id!==adjustmentId)
         return send({ok:false,error:"customer_balance_adjustment_ledger_verification_failed",adjustment:saved,summary,ledger},409);
       return send({ok:true,verified:true,direction,adjustment:saved,summary,ledger});
+    }
+    if(action==="delete_customer_account_adjustment") {
+      if(!metadataAdmin) return send({ok:false,error:"admin_only"},403);
+      const customerId=typeof body.customer_id==="string"?body.customer_id.trim():"";
+      const adjustmentId=typeof body.adjustment_id==="string"?body.adjustment_id.trim():"";
+      if(!customerId||!adjustmentId) return send({ok:false,error:"invalid_adjustment_reference"},400);
+      const result=await post("rpc/delete_customer_account_adjustment",{p_customer_id:customerId,p_adjustment_id:adjustmentId});
+      if(!result||result.ok!==true||!Array.isArray(result.deleted_ids)||!result.deleted_ids.length)
+        return send({ok:false,error:"adjustment_delete_not_confirmed"},409);
+      const ids=result.deleted_ids.map((x:string)=>String(x));
+      const [remaining,summaryRows,ledgerRows]=await Promise.all([
+        get("customer_account_adjustments?select=id&id=in.("+ids.map(encodeURIComponent).join(",")+")"),
+        get("customer_balance_summary?select=customer_id,azna_balance_rial,khorramabad_balance_rial,total_balance_rial&customer_id=eq."+encodeURIComponent(customerId)+"&limit=1"),
+        get("customer_account_ledger?select=id,source_id&customer_id=eq."+encodeURIComponent(customerId)+"&source_type=eq.adjustment&source_id=in.("+ids.map(encodeURIComponent).join(",")+")")
+      ]);
+      const summary=Array.isArray(summaryRows)?summaryRows[0]:null;
+      if((Array.isArray(remaining)&&remaining.length)||(Array.isArray(ledgerRows)&&ledgerRows.length)||!summary)
+        return send({ok:false,error:"adjustment_delete_verification_failed"},409);
+      return send({ok:true,verified:true,deleted_ids:ids,deleted_count:ids.length,summary});
     }
     if(action==="transfer_customer_balance") {
       if(!metadataAdmin) return send({ok:false,error:"admin_only"},403);
