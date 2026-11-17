@@ -153,14 +153,38 @@ Deno.serve(async (req: Request) => {
     const balance=Array.isArray(balances)?balances[0]||{}:{};
     const fa=(v:number)=>Math.round(v).toLocaleString("fa-IR");
     const greenhouseName=(v:string)=>v==="azna"?"ازنا":"خرم‌آباد";
-    const shipmentLines=pending.map((x:any)=>"• "+(jalaliDateFromTimestamp(String(x.shipped_at))||"تاریخ نامشخص")+" · "+greenhouseName(String(x.greenhouse))+" · "+fa(Number(x.quantity_bundles||0))+" دسته");
+    const jalaliMonthNames=["فروردین","اردیبهشت","خرداد","تیر","مرداد","شهریور","مهر","آبان","آذر","دی","بهمن","اسفند"];
+    const grouped=new Map<string,{date:string;greenhouse:string;count:number;sort:string}>();
+    for(const x of pending){
+      const rawDate=jalaliDateFromTimestamp(String(x.shipped_at));
+      if(!rawDate)throw new Error("shipment_date_conversion_failed");
+      const parts=rawDate.split("/");
+      if(parts.length!==3)throw new Error("shipment_date_conversion_failed");
+      const [jy,jm,jd]=parts;
+      const monthIndex=Number(jm)-1;
+      if(monthIndex<0||monthIndex>11)throw new Error("shipment_date_conversion_failed");
+      const dateLabel=jd+" "+jalaliMonthNames[monthIndex]+" "+jy;
+      const greenhouse=String(x.greenhouse);
+      const key=rawDate+"|"+greenhouse;
+      const current=grouped.get(key)||{date:dateLabel,greenhouse,count:0,sort:rawDate};
+      current.count+=Number(x.quantity_bundles||0);
+      grouped.set(key,current);
+    }
+    const groupedRows=[...grouped.values()].sort((a,b)=>a.sort.localeCompare(b.sort)||a.greenhouse.localeCompare(b.greenhouse));
+    const shipmentLines=groupedRows.map(x=>"• "+x.date+"، "+greenhouseName(x.greenhouse)+": "+fa(x.count)+" دسته");
+    const totalBundles=pending.reduce((sum:any,x:any)=>sum+Number(x.quantity_bundles||0),0);
     const total=Number(balance.total_balance_rial||0);
-    const balanceLine="مانده کل حساب: "+fa(total)+" ریال";
-    const intro="مشتری گرامی "+String(customer.name||"")+"،";
+    const balanceLine="مانده کل حساب شما: "+fa(total)+" ریال";
+    const greeting="سلام آقای "+String(customer.name||"مشتری")+"، وقت بخیر 🌹";
+    const shipmentMessage=greeting+"\n\nبارهای زیر در حسابداری رز لر هنوز فاکتور ندارند:"+
+      (shipmentLines.length?"\n"+shipmentLines.join("\n")+"\n\nجمع بارهای بدون فاکتور: "+fa(totalBundles)+" دسته":"\nموردی برای اعلام ثبت نشده است.")+
+      "\n\nلطفاً برای تعیین تکلیف فاکتورهای بارهای فوق و ارسال آن‌ها جهت ثبت در حسابداری اقدام فرمایید. چنانچه باری هنوز به فروش نرسیده یا موردی در اطلاعات وجود دارد، لطفاً اطلاع دهید تا بررسی و اصلاح لازم انجام شود."+
+      "\n\nبا تشکر\nمهندس علی ترابی\nمدیریت مجتمع‌های گلخانه‌ای هیدروپونیک رز لر";
+    const signature="\n\nبا تشکر\nمهندس علی ترابی\nمدیریت مجتمع‌های گلخانه‌ای هیدروپونیک رز لر";
     let message="";
-    if(template==="shipments")message=intro+"\nبارهای ثبت‌شده بدون فاکتور شما:"+(shipmentLines.length?"\n"+shipmentLines.join("\n"):"\nموردی ثبت نشده است.");
-    if(template==="balance")message=intro+"\n"+balanceLine;
-    if(template==="followup")message=intro+"\nبارهای ثبت‌شده بدون فاکتور:"+(shipmentLines.length?"\n"+shipmentLines.join("\n"):"\nموردی ثبت نشده است.")+"\n"+balanceLine;
+    if(template==="shipments")message=shipmentMessage;
+    if(template==="balance")message=greeting+"\n\n"+balanceLine+signature;
+    if(template==="followup")message=shipmentMessage.replace(signature,"")+"\n\n"+balanceLine+signature;
     if(body.send===true)return send({ok:false,error:"sms_queue_submission_not_available_in_this_action"},501);
     return reply(req,{ok:true,verified:true,customer:{id:customer.id,name:customer.name,phone},message,shipment_count:pending.length,total_balance_rial:total});
   }
