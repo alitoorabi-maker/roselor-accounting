@@ -186,20 +186,32 @@ Deno.serve(async (req: Request) => {
     if(template==="shipments")message=shipmentMessage;
     if(template==="balance")message=greeting+"\n\n"+balanceLine+signature;
     if(template==="followup")message=shipmentMessage.replace(signature,"")+"\n\n"+balanceLine+signature;
-    if(body.send===true)return send({ok:false,error:"sms_queue_submission_not_available_in_this_action"},501);
+    if(body.send===true){
+      if(!metadataAdmin)return send({ok:false,error:"sms_admin_required"},403);
+      const editedText=typeof body.text==="string"?body.text.trim():"";
+      if(!editedText||editedText.length>2000)return send({ok:false,error:"invalid_sms_text"},400);
+      const sent=await fetch(BASE+"/functions/v1/roselor-sms-api",{method:"POST",headers:{apikey:publishable,authorization:"Bearer "+bearer,"content-type":"application/json"},body:JSON.stringify({mobile:phone,text:editedText})});
+      const result=await sent.json().catch(()=>({}));
+      if(!sent.ok||result.ok!==true)return send({ok:false,error:result.code||"sms_provider_send_failed",message:result.message||"ارسال پیامک ناموفق بود."},sent.status>=400?sent.status:502);
+      return reply(req,{ok:true,verified:true,sent:true,provider_code:String(result.code||"0"),message:result.message||"پیامک با موفقیت ارسال شد.",customer:{id:customer.id,name:customer.name,phone}});
+    }
     return reply(req,{ok:true,verified:true,customer:{id:customer.id,name:customer.name,phone},message,shipment_count:pending.length,total_balance_rial:total});
   }
   if(action==="customer_sms_history"){
     if(!metadataAdmin&&!accessRows.some((x:any)=>x.role==="accountant"))return send({ok:false,error:"sms_history_access_denied"},403);
-    const rows=await get("sms_send_queue?select=id,mobile_no,text,status,provider_code,provider_message,error_message,created_at,sent_at&order=created_at.desc&limit=100");
-    const phones=[...new Set((Array.isArray(rows)?rows:[]).map((x:any)=>String(x.mobile_no||"").trim()).filter(Boolean))];
+    const [queued,outbox]=await Promise.all([
+      get("sms_send_queue?select=id,mobile_no,text,status,provider_code,provider_message,error_message,created_at,sent_at&order=created_at.desc&limit=100").catch(()=>[]),
+      get("sms_outbox?select=id,mobile_no,text,status,provider_code,provider_message,created_at,sent_at&order=created_at.desc&limit=100").catch(()=>[])
+    ]);
+    const rows=[...(Array.isArray(queued)?queued:[]),...(Array.isArray(outbox)?outbox:[])].sort((a:any,b:any)=>String(b.created_at||"").localeCompare(String(a.created_at||""))).slice(0,100);
+    const phones=[...new Set(rows.map((x:any)=>String(x.mobile_no||"").trim()).filter(Boolean))];
     let customers:any[]=[];
     if(phones.length){
       const inList=phones.map((x:string)=>encodeURIComponent(x)).join(",");
       customers=await get("customers?select=name,phone&phone=in.("+inList+")&limit=500").catch(()=>[]);
     }
     const byPhone=new Map((Array.isArray(customers)?customers:[]).map((x:any)=>[String(x.phone||""),String(x.name||"")]));
-    return reply(req,{ok:true,verified:true,history:(Array.isArray(rows)?rows:[]).map((x:any)=>({...x,customer_name:byPhone.get(String(x.mobile_no||""))||"مشتری ثبت‌نشده"}))});
+    return reply(req,{ok:true,verified:true,history:rows.map((x:any)=>({...x,customer_name:byPhone.get(String(x.mobile_no||""))||"مشتری ثبت‌نشده"}))});
   }
   if(action==="my_access") return reply(req,{ok:true,is_admin:metadataAdmin,access:metadataAdmin?[{greenhouse:"azna",role:"admin"},{greenhouse:"khorramabad",role:"admin"}]:accessRows,section_permissions:sectionPermissions});
   if(hasSupervisor&&!["shipments_without_invoice","shipment_form_options","create_shipment","create_invoice_for_shipment","save_daily_harvest","daily_harvest_summary","cold_storage_summary","supervisor_bucket_form_options","supervisor_bucket_requests","submit_supervisor_bucket_return"].includes(action)) return send({ok:false,error:"supervisor_action_not_allowed"},403);
