@@ -1423,7 +1423,7 @@ window.notifyRoselorEvent=async function(kind,customerId){
  const renderSmsHistory=(rows)=>{
   if(!Array.isArray(rows)||!rows.length){historyList.innerHTML='<div class="sms-history-empty">هنوز سابقه‌ای برای نمایش وجود ندارد.</div>';return;}
   historyList.innerHTML=rows.map(x=>{
-   const ok=x.status==="sent"&&String(x.provider_code)==="2";
+   const ok=x.status==="sent";
    const failed=x.status==="failed";
    const state=ok?"sent":failed?"failed":"pending";
    const label=ok?"ارسال‌شده":failed?"ناموفق":"در انتظار / در حال ارسال";
