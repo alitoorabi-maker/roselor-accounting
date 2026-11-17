@@ -158,7 +158,8 @@ Deno.serve(async (req: Request) => {
     for(const x of pending){
       const rawDate=jalaliDateFromTimestamp(String(x.shipped_at));
       if(!rawDate)throw new Error("shipment_date_conversion_failed");
-      const parts=rawDate.split("/");
+      const toLatinDigits=(value:string)=>value.replace(/[۰-۹]/g,(digit:string)=>String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit))).replace(/[٠-٩]/g,(digit:string)=>String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
+      const parts=rawDate.split("/").map(toLatinDigits);
       if(parts.length!==3)throw new Error("shipment_date_conversion_failed");
       const [jy,jm,jd]=parts;
       const monthIndex=Number(jm)-1;
