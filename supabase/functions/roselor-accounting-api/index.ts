@@ -57,7 +57,7 @@ Deno.serve(async (req: Request) => {
   const metadataAdmin=meta.accounting_admin===true || meta.role==="admin";
   let body:any; try { body=await req.json(); } catch { return send({ok:false,error:"invalid_json"},400); }
   const action=body.action;
-  const allowed=["my_access","overview","customer_balances","customer_ledger","customer_ledger_event_detail","create_customer_discount_adjustment","create_customer_balance_adjustment","transfer_customer_balance","transaction_ledger","unmatched_transactions","shipments_without_invoice","monthly_sales_monitor","bank_balance_reconciliation","create_invoice_for_shipment","pending_supervisor_invoices","approve_supervisor_invoice","create_shipment","customer_contract_options","delete_shipment","shipment_form_options","reconcile_deposit","reconcile_withdrawal","create_bank_reconciliation_adjustment","vendor_options","create_vendor","update_vendor","daily_harvest_summary","cold_storage_summary","delete_daily_harvest","monthly_shipment_summary","returned_buckets","create_returned_bucket","driver_bucket_ledger","delete_driver_bucket_ledger","create_driver_bucket_return","pending_driver_bucket_returns","review_driver_bucket_return","driver_freight_requests","review_driver_freight_request","pending_supervisor_shipments","review_supervisor_shipment","pending_supervisor_harvests","review_supervisor_harvest","driver_delivery_confirmations","save_daily_harvest","supervisor_bucket_form_options","supervisor_bucket_requests","submit_supervisor_bucket_return","customer_sms_customers","customer_sms_history"];
+  const allowed=["my_access","overview","customer_balances","customer_ledger","customer_ledger_event_detail","create_customer_discount_adjustment","create_customer_balance_adjustment","transfer_customer_balance","transaction_ledger","unmatched_transactions","shipments_without_invoice","monthly_sales_monitor","bank_balance_reconciliation","create_invoice_for_shipment","pending_supervisor_invoices","approve_supervisor_invoice","create_shipment","customer_contract_options","delete_shipment","shipment_form_options","reconcile_deposit","reconcile_withdrawal","create_bank_reconciliation_adjustment","vendor_options","create_vendor","update_vendor","daily_harvest_summary","cold_storage_summary","delete_daily_harvest","monthly_shipment_summary","returned_buckets","create_returned_bucket","driver_bucket_ledger","delete_driver_bucket_ledger","create_driver_bucket_return","pending_driver_bucket_returns","review_driver_bucket_return","driver_freight_requests","review_driver_freight_request","pending_supervisor_shipments","review_supervisor_shipment","pending_supervisor_harvests","review_supervisor_harvest","driver_delivery_confirmations","save_daily_harvest","supervisor_bucket_form_options","supervisor_bucket_requests","submit_supervisor_bucket_return","customer_sms_customers","customer_sms_history","customer_sms_template"];
   if(!allowed.includes(action)) return send({ok:false,error:"unsupported_action",allowed},400);
   const key=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if(!key) return send({ok:false,error:"server_configuration_missing"},500);
@@ -125,6 +125,44 @@ Deno.serve(async (req: Request) => {
     const rows=await get("customers?select=id,name,phone&is_active=eq.true&phone=not.is.null&order=name.asc&limit=2000");
     const customers=(Array.isArray(rows)?rows:[]).filter((x:any)=>String(x.name||"").trim().length>0&&/^09\d{9}$/.test(String(x.phone||"").replace(/[\s-]/g,"")));
     return reply(req,{ok:true,verified:true,customers:customers.map((x:any)=>({...x,phone:String(x.phone).replace(/[\s-]/g,"")}))});
+  }
+  if(action==="customer_sms_template"){
+    if(!metadataAdmin&&!accessRows.some((x:any)=>x.role==="accountant"))return send({ok:false,error:"sms_template_access_denied"},403);
+    if(body.queue_id){
+      const queueId=String(body.queue_id).trim();
+      if(!queueId||queueId.length>160)return send({ok:false,error:"invalid_sms_queue_id"},400);
+      const rows=await get("sms_send_queue?select=id,mobile_no,text,status,provider_code,provider_message,error_message,created_at,sent_at&id=eq."+encodeURIComponent(queueId)+"&limit=1");
+      const queue=Array.isArray(rows)?rows[0]:null;
+      if(!queue)return send({ok:false,error:"sms_queue_item_not_found"},404);
+      return reply(req,{ok:true,verified:true,queue});
+    }
+    const customerId=typeof body.customer_id==="string"?body.customer_id.trim():"";
+    const template=typeof body.template==="string"?body.template.trim():"";
+    if(!customerId||!["shipments","balance","followup"].includes(template))return send({ok:false,error:"invalid_sms_template_input"},400);
+    const customers=await get("customers?select=id,name,phone,is_active&id=eq."+encodeURIComponent(customerId)+"&is_active=eq.true&limit=1");
+    const customer=Array.isArray(customers)?customers[0]:null;
+    const phone=String(customer?.phone||"").replace(/[\\s-]/g,"");
+    if(!customer||!/^09\\d{9}$/.test(phone))return send({ok:false,error:"sms_customer_not_found_or_invalid_phone"},404);
+    const [shipments,invoices,balances]=await Promise.all([
+      get("shipments?select=id,greenhouse,quantity_bundles,shipped_at,status&customer_id=eq."+encodeURIComponent(customerId)+"&status=not.in.(cancelled,rejected)&order=shipped_at.asc&limit=5000"),
+      get("invoices?select=shipment_id"),
+      get("customer_balance_summary?select=customer_id,azna_balance_rial,khorramabad_balance_rial,total_balance_rial&customer_id=eq."+encodeURIComponent(customerId)+"&limit=1")
+    ]);
+    const invoiced=new Set((Array.isArray(invoices)?invoices:[]).map((x:any)=>String(x.shipment_id)));
+    const pending=(Array.isArray(shipments)?shipments:[]).filter((x:any)=>!invoiced.has(String(x.id))&&allowedGreenhouses.has(String(x.greenhouse)));
+    const balance=Array.isArray(balances)?balances[0]||{}:{};
+    const fa=(v:number)=>Math.round(v).toLocaleString("fa-IR");
+    const greenhouseName=(v:string)=>v==="azna"?"ازنا":"خرم‌آباد";
+    const shipmentLines=pending.map((x:any)=>"• "+(jalaliDateFromTimestamp(String(x.shipped_at))||"تاریخ نامشخص")+" · "+greenhouseName(String(x.greenhouse))+" · "+fa(Number(x.quantity_bundles||0))+" دسته");
+    const total=Number(balance.total_balance_rial||0);
+    const balanceLine="مانده کل حساب: "+fa(total)+" ریال";
+    const intro="مشتری گرامی "+String(customer.name||"")+"،";
+    let message="";
+    if(template==="shipments")message=intro+"\\nبارهای ثبت‌شده بدون فاکتور شما:"+(shipmentLines.length?"\\n"+shipmentLines.join("\\n"):"\\nموردی ثبت نشده است.");
+    if(template==="balance")message=intro+"\\n"+balanceLine;
+    if(template==="followup")message=intro+"\\nبارهای ثبت‌شده بدون فاکتور:"+(shipmentLines.length?"\\n"+shipmentLines.join("\\n"):"\\nموردی ثبت نشده است.")+"\\n"+balanceLine;
+    if(body.send===true)return send({ok:false,error:"sms_queue_submission_not_available_in_this_action"},501);
+    return reply(req,{ok:true,verified:true,customer:{id:customer.id,name:customer.name,phone},message,shipment_count:pending.length,total_balance_rial:total});
   }
   if(action==="customer_sms_history"){
     if(!metadataAdmin&&!accessRows.some((x:any)=>x.role==="accountant"))return send({ok:false,error:"sms_history_access_denied"},403);
