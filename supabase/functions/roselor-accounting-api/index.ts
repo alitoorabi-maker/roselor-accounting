@@ -530,7 +530,25 @@ Deno.serve(async (req: Request) => {
       if(!saved||saved.customer_id!==customerId||saved.greenhouse!==greenhouse||Number(saved.quantity_bundles)!==bundles||(effectiveAmount===null?saved.declared_amount_rial!==null:Number(saved.declared_amount_rial)!==effectiveAmount)||String(saved.flower_truck||"")!==flowerTruck||Number(saved.bucket_count)!==bucketCount||saved.status!==(hasSupervisor?"pending_approval":"sent")||new Date(saved.shipped_at).toISOString()!==shippedAt)
         return send({ok:false,error:"shipment_verification_failed",shipment:saved,allocation},409);
       let notification:any={ok:false,error:"push_not_attempted"};
-      if(hasSupervisor){try{const pushResponse=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:publishable,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send",title:"بار جدید برای تأیید مدیر",body:customer.name+" · "+(greenhouse==="azna"?"گلخانه ازنا":"گلخانه خرم‌آباد")+" · "+String(bundles)+" دسته · تاریخ "+check+" برای تأیید ثبت شد.",url:"./index.html"})});notification=await pushResponse.json().catch(()=>({ok:false,error:"invalid_push_response"}));if(!pushResponse.ok)notification={ok:false,error:"push_http_"+pushResponse.status};}catch(e){notification={ok:false,error:String(e)};}}
+      if(hasSupervisor){
+        try{
+          const pushResponse=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:publishable,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send",title:"بار جدید برای تأیید مدیر",body:customer.name+" · "+(greenhouse==="azna"?"گلخانه ازنا":"گلخانه خرم‌آباد")+" · "+String(bundles)+" دسته · تاریخ "+check+" برای تأیید ثبت شد.",url:"./index.html"})});
+          notification=await pushResponse.json().catch(()=>({ok:false,error:"invalid_push_response"}));
+          if(!pushResponse.ok)notification={ok:false,error:"push_http_"+pushResponse.status};
+        }catch(e){notification={ok:false,error:String(e)};}
+      } else {
+        try{
+          const pushResponse=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:publishable,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send_customer",customer_id:customerId,title:"رز لر · بار جدید",body:"بار جدید برای حساب شما ثبت شد. برای مشاهده جزئیات و بررسی فاکتور وارد پنل رز لر شوید.",url:"./customer-portal.html"})});
+          const pushResult=await pushResponse.json().catch(()=>({ok:false,error:"invalid_push_response"}));
+          if(!pushResponse.ok) notification={ok:false,error:"push_http_"+pushResponse.status};
+          else {
+            const delivered=Number(pushResult.sent||0)+Number(pushResult.fcmSent||0);
+            const attempted=delivered+Number(pushResult.failed||0)+Number(pushResult.fcmFailed||0);
+            notification={...pushResult,delivery_confirmed:delivered>0};
+            if(attempted===0)notification={...notification,ok:false,error:"no_active_subscription_for_recipient"};
+          }
+        }catch(e){notification={ok:false,error:String(e)};}
+      }
       return send({ok:true,verified:true,allocation,notification,shipment:{...saved,customer_name:customer.name,customer_phone:customer.phone||null,shipped_at_jalali:check}});
     }
     if(action==="reconcile_withdrawal") {
@@ -946,7 +964,7 @@ if(action==="vendor_options") {
       ]);
       return send({ok:true,source:"supabase",currency:"IRR",transactions,customers});
     }
-    const [shipments,invoices,customers]=await Promise.all([get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status,declared_amount_rial&status=not.in.(cancelled,rejected)&order=shipped_at.asc,id.asc&limit=500"),get("invoices?select=shipment_id"),get("customers?select=id,name,phone")]);
+    const [shipments,invoices,customers]=await Promise.all([get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status,declared_amount_rial,flower_truck,bucket_count&status=not.in.(cancelled,rejected)&order=shipped_at.asc,id.asc&limit=500"),get("invoices?select=shipment_id"),get("customers?select=id,name,phone")]);
     const invoiced=new Set((invoices||[]).map((x:any)=>x.shipment_id));
     const names=new Map((customers||[]).map((x:any)=>[x.id,x.name]));
     const phones=new Map((customers||[]).map((x:any)=>[x.id,x.phone||null]));
