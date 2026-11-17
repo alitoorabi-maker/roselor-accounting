@@ -672,7 +672,8 @@ E("search").oninput=renderB;E("showLedger").onclick=()=>{if(!E("ledgerCustomer")
   };
   const adjustmentHistory=visibleAdjustments.map(a=>{
    const label=adjustmentLabels[a.adjustment_type]||("اصلاحیه · "+String(a.adjustment_type||"نامشخص"));
-   return '<div class="card" style="margin:8px 0;padding:11px;border:1px solid rgba(201,166,75,.35)"><div class="head"><strong>'+esc(label)+'</strong><span class="pill">'+esc(a.greenhouse==="azna"?"ازنا":a.greenhouse==="khorramabad"?"خرم‌آباد":a.greenhouse||"نامشخص")+'</span></div><div class="amount">'+fmt(a.amount_rial)+' <small>ریال</small></div><div class="meta">'+esc(a.description||"بدون شرح")+'</div><div class="meta">تاریخ ثبت: '+esc(fmtDate(a.event_at||a.created_at))+'</div></div>';
+   const transfer=["transfer_credit","transfer_debit"].includes(a.adjustment_type);
+   return '<div class="card" style="margin:8px 0;padding:11px;border:1px solid rgba(201,166,75,.35)"><div class="head"><strong>'+esc(label)+'</strong><span class="pill">'+esc(a.greenhouse==="azna"?"ازنا":a.greenhouse==="khorramabad"?"خرم‌آباد":a.greenhouse||"نامشخص")+'</span></div><div class="amount">'+fmt(a.amount_rial)+' <small>ریال</small></div><div class="meta">'+esc(a.description||"بدون شرح")+'</div><div class="meta">تاریخ ثبت: '+esc(fmtDate(a.event_at||a.created_at))+'</div><button type="button" class="btn danger" style="margin-top:10px" data-delete-customer-adjustment="'+esc(a.id)+'">'+(transfer?"حذف انتقال (هر دو سند)":"حذف اصلاحیه")+'</button></div>';
   }).join("")||empty("برای این مشتری اصلاحیه‌ای ثبت نشده است.");
   target.innerHTML=
    '<div class="panel"><div class="head"><h2 class="title">ریز حساب '+esc(d.customer?.name||"")+'</h2><span class="pill">ریال</span></div>'+
@@ -736,6 +737,25 @@ E("search").oninput=renderB;E("showLedger").onclick=()=>{if(!E("ledgerCustomer")
     if(note)note.textContent="انتقال انجام و هر دو سند در Supabase تأیید شد. مانده کل تغییر نکرد.";
    }catch(err){msg.textContent="خطا: "+err.message;transferBtn.disabled=false}
   };
+
+  target.querySelectorAll("[data-delete-customer-adjustment]").forEach(button=>button.onclick=async()=>{
+   const adjustmentId=button.dataset.deleteCustomerAdjustment;
+   const transfer=button.textContent.includes("انتقال");
+   const promptText=transfer
+    ?"این انتقال شامل دو سند مرتبط است. هر دو سند حذف و مانده‌های دو گلخانه دوباره محاسبه می‌شوند. ادامه می‌دهی؟"
+    :"این اصلاحیه حذف می‌شود و مانده حساب مشتری دوباره از روی سوابق معتبر محاسبه خواهد شد. ادامه می‌دهی؟";
+   if(!adjustmentId||!confirm(promptText))return;
+   button.disabled=true;button.textContent="در حال حذف و محاسبه مجدد…";
+   try{
+    const result=await api("delete_customer_account_adjustment",{customer_id:id,adjustment_id:adjustmentId});
+    if(!result.ok||result.verified!==true||!Array.isArray(result.deleted_ids)||!result.deleted_ids.includes(adjustmentId))
+     throw Error(result.error||"حذف و بازخوانی از Supabase تأیید نشد.");
+    await loadLedger(id,targetId);
+   }catch(err){
+    alert("حذف انجام نشد: "+(err.message||err));
+    button.disabled=false;button.textContent=transfer?"حذف انتقال (هر دو سند)":"حذف اصلاحیه";
+   }
+  });
 
   const adjustmentBtn=target.querySelector("#saveCustomerBalanceAdjustment");
   if(adjustmentBtn)adjustmentBtn.onclick=async()=>{
