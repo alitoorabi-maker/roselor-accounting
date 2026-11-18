@@ -476,7 +476,7 @@ Deno.serve(async (req: Request) => {
     if(action==="customer_contract_reports") {
       if(hasSupervisor) return send({ok:false,error:"manager_access_required_for_contract_reports"},403);
       const contracts=await get("customer_contracts?select=id,customer_id,greenhouse,contract_start_date,contract_end_date,delivery_frequency,quantity_per_period,period_price_rial,unit_price_rial,notes,is_active&order=contract_start_date.desc&limit=500");
-      const active=(Array.isArray(contracts)?contracts:[]).filter((c:any)=>c.is_active!==false);
+      const active=(Array.isArray(contracts)?contracts:[]).filter((c:any)=>c.is_active!==false&&allowedGreenhouses.has(String(c.greenhouse)));
       const ids=active.map((c:any)=>String(c.id));
       const customerIds=[...new Set(active.map((c:any)=>String(c.customer_id)))];
       const customers=customerIds.length?await get("customers?select=id,name&id=in.("+customerIds.map(encodeURIComponent).join(",")+")"): [];
