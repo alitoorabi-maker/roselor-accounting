@@ -1,9 +1,10 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 const BASE = "https://amiahhuapkqwbtcsmzal.supabase.co";
-const ALLOWED_ORIGINS = new Set(["https://chatgpt.com","https://amiahhuapkqwbtcsmzal.supabase.co","https://id-preview--0a745bcf-66b6-42f8-9bde-8de369d482ab.lovable.app","https://roselor-accounting.lovable.app","https://alitoorabi-maker.github.io"]);
-function corsHeaders(req: Request) {
-  const origin = req.headers.get("origin") || "";
-  return {"content-type":"application/json; charset=utf-8","access-control-allow-origin":ALLOWED_ORIGINS.has(origin)?origin:"https://chatgpt.com","vary":"Origin","access-control-allow-headers":"authorization, content-type, apikey","access-control-allow-methods":"POST, OPTIONS","cache-control":"no-store"};
+function corsHeaders(_req: Request) {
+  // This endpoint authenticates every request with an explicitly supplied Bearer token
+  // and does not use cookie credentials. A wildcard avoids WebView / installed-app
+  // origin mismatches while keeping authorization enforced by the handler below.
+  return {"content-type":"application/json; charset=utf-8","access-control-allow-origin":"*","access-control-allow-headers":"authorization, content-type, apikey","access-control-allow-methods":"POST, OPTIONS","cache-control":"no-store"};
 }
 
 function jalaliDateFromTimestamp(value: string) {
