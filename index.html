@@ -902,10 +902,9 @@ async function loadHarvest(){
   const todayHarvest=await harvestToday();if(!E("harvestDate").value)E("harvestDate").value=todayHarvest;if(!E("harvestFrom").value)E("harvestFrom").value=todayHarvest;if(!E("harvestTo").value)E("harvestTo").value=todayHarvest;
   const from=jalaliInputToGregorian(E("harvestFrom").value),to=jalaliInputToGregorian(E("harvestTo").value);
   if(!from||!to)throw Error("تاریخ شمسی را به شکل سال/ماه/روز وارد کن.");
-  const [result,cold]=await Promise.all([api("daily_harvest_summary",{date_from:from,date_to:to}),api("cold_storage_summary",{})]);
+  const result=await api("daily_harvest_summary",{date_from:from,date_to:to});
   if(result?.ok!==true||!Array.isArray(result.harvests))throw Error(result?.error||"دریافت آمار برداشت ناموفق بود.");
-  if(cold?.ok!==true||!cold.greenhouses)throw Error(cold?.error||"دریافت موجودی کل سردخانه ناموفق بود.");
-  harvestRows=result.harvests.map(x=>({...x,cold_storage_total_bundles:Number(cold.greenhouses[x.greenhouse]?.current_bundles??0)}));renderHarvest();
+  harvestRows=result.harvests.map(x=>({...x,cold_storage_total_bundles:Number(x.cold_storage_bundles??0)}));renderHarvest();
  }catch(e){E("harvestList").innerHTML=empty(e.message);E("harvestSummary").innerHTML=""}
 }
 E("harvestForm").addEventListener("submit",async ev=>{
