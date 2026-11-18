@@ -483,10 +483,11 @@ Deno.serve(async (req: Request) => {
       const customerMap=new Map((Array.isArray(customers)?customers:[]).map((x:any)=>[String(x.id),x.name]));
       const reports=[];
       for(const c of active){
-        const [entitlements,allocations,shipments]=await Promise.all([
+        const [entitlements,allocations,shipments,accountBalances]=await Promise.all([
           get("customer_contract_weekly_entitlements?select=week_start,quota_bundles,consumed_bundles&contract_id=eq."+encodeURIComponent(c.id)+"&order=week_start.asc"),
           get("customer_contract_delivery_allocations?select=id,shipment_id,delivery_date,delivered_bundles,contract_bundles,future_bundles,extra_bundles,contract_amount_rial,extra_amount_rial,total_amount_rial,allocation_mode&contract_id=eq."+encodeURIComponent(c.id)+"&order=delivery_date.asc"),
-          get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status&customer_id=eq."+encodeURIComponent(c.customer_id)+"&greenhouse=eq."+encodeURIComponent(c.greenhouse)+"&order=shipped_at.asc&limit=2000")
+          get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status&customer_id=eq."+encodeURIComponent(c.customer_id)+"&greenhouse=eq."+encodeURIComponent(c.greenhouse)+"&order=shipped_at.asc&limit=2000"),
+          get("customer_balance_summary?select=customer_id,azna_balance_rial,khorramabad_balance_rial&customer_id=eq."+encodeURIComponent(c.customer_id)+"&limit=1")
         ]);
         const alloc=Array.isArray(allocations)?allocations:[];
         const shipmentIds=[...new Set(alloc.map((x:any)=>String(x.shipment_id)).filter(Boolean))];
@@ -498,7 +499,8 @@ Deno.serve(async (req: Request) => {
         for(const p of (Array.isArray(payments)?payments:[])){const k=String((p as any).invoice_id);paidByInvoice.set(k,(paidByInvoice.get(k)||0)+Number((p as any).amount_rial||0));}
         const invoiceByShipment=new Map<string,any>();
         for(const x of inv)invoiceByShipment.set(String((x as any).shipment_id),x);
-        reports.push({contract:{...c,customer_name:customerMap.get(String(c.customer_id))||"نامشخص"},entitlements:Array.isArray(entitlements)?entitlements:[],allocations:alloc,shipments:Array.isArray(shipments)?shipments:[],invoices:inv,payments:Array.isArray(payments)?payments:[],paid_by_invoice:Object.fromEntries(paidByInvoice),invoice_by_shipment:Object.fromEntries(invoiceByShipment)});
+        const balance=Array.isArray(accountBalances)?accountBalances[0]||{}:{}; const accountBalance=Number(c.greenhouse==="azna"?balance.azna_balance_rial:balance.khorramabad_balance_rial)||0;
+        reports.push({contract:{...c,customer_name:customerMap.get(String(c.customer_id))||"نامشخص",contract_start_date_jalali:jalaliDateFromTimestamp(String(c.contract_start_date)+"T12:00:00Z"),contract_end_date_jalali:jalaliDateFromTimestamp(String(c.contract_end_date)+"T12:00:00Z")},account_balance_rial:accountBalance,entitlements:Array.isArray(entitlements)?entitlements:[],allocations:alloc.map((x:any)=>({...x,delivery_date_jalali:jalaliDateFromTimestamp(String(x.delivery_date)+"T12:00:00Z")})),shipments:Array.isArray(shipments)?shipments:[],invoices:inv,payments:Array.isArray(payments)?payments:[],paid_by_invoice:Object.fromEntries(paidByInvoice),invoice_by_shipment:Object.fromEntries(invoiceByShipment)});
       }
       return send({ok:true,source:"supabase",currency:"IRR",reports});
     }
