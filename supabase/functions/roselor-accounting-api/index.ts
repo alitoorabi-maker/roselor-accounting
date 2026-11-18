@@ -57,7 +57,7 @@ Deno.serve(async (req: Request) => {
   const metadataAdmin=meta.accounting_admin===true || meta.role==="admin";
   let body:any; try { body=await req.json(); } catch { return send({ok:false,error:"invalid_json"},400); }
   const action=body.action;
-  const allowed=["my_access","overview","customer_balances","customer_ledger","customer_ledger_event_detail","create_customer_discount_adjustment","create_customer_balance_adjustment","delete_customer_account_adjustment","transfer_customer_balance","transaction_ledger","unmatched_transactions","shipments_without_invoice","monthly_sales_monitor","bank_balance_reconciliation","create_invoice_for_shipment","pending_supervisor_invoices","approve_supervisor_invoice","create_shipment","customer_contract_options","delete_shipment","shipment_form_options","reconcile_deposit","reconcile_withdrawal","create_bank_reconciliation_adjustment","vendor_options","create_vendor","update_vendor","daily_harvest_summary","cold_storage_summary","delete_daily_harvest","monthly_shipment_summary","returned_buckets","create_returned_bucket","driver_bucket_ledger","delete_driver_bucket_ledger","create_driver_bucket_return","pending_driver_bucket_returns","review_driver_bucket_return","driver_freight_requests","review_driver_freight_request","pending_supervisor_shipments","review_supervisor_shipment","pending_supervisor_harvests","review_supervisor_harvest","driver_delivery_confirmations","save_daily_harvest","supervisor_bucket_form_options","supervisor_bucket_requests","submit_supervisor_bucket_return","customer_sms_customers","customer_sms_history","customer_sms_template"];
+  const allowed=["my_access","overview","customer_balances","customer_ledger","customer_ledger_event_detail","create_customer_discount_adjustment","create_customer_balance_adjustment","delete_customer_account_adjustment","transfer_customer_balance","transaction_ledger","unmatched_transactions","shipments_without_invoice","monthly_sales_monitor","bank_balance_reconciliation","create_invoice_for_shipment","pending_supervisor_invoices","approve_supervisor_invoice","create_shipment","customer_contract_options","customer_contract_reports","delete_shipment","shipment_form_options","reconcile_deposit","reconcile_withdrawal","create_bank_reconciliation_adjustment","vendor_options","create_vendor","update_vendor","daily_harvest_summary","cold_storage_summary","delete_daily_harvest","monthly_shipment_summary","returned_buckets","create_returned_bucket","driver_bucket_ledger","delete_driver_bucket_ledger","create_driver_bucket_return","pending_driver_bucket_returns","review_driver_bucket_return","driver_freight_requests","review_driver_freight_request","pending_supervisor_shipments","review_supervisor_shipment","pending_supervisor_harvests","review_supervisor_harvest","driver_delivery_confirmations","save_daily_harvest","supervisor_bucket_form_options","supervisor_bucket_requests","submit_supervisor_bucket_return","customer_sms_customers","customer_sms_history","customer_sms_template"];
   if(!allowed.includes(action)) return send({ok:false,error:"unsupported_action",allowed},400);
   const key=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if(!key) return send({ok:false,error:"server_configuration_missing"},500);
@@ -472,6 +472,35 @@ Deno.serve(async (req: Request) => {
       const candidates=[...(transportVendors||[]).flatMap((v:any)=>[v.name,v.flower_truck_driver]),...(legacyDrivers||[]).map((v:any)=>v.flower_truck_driver)];
       const flower_truck_drivers=Array.from(new Set(candidates.map((x:any)=>String(x||"").trim()).filter((x:string)=>x.length>0 && x!=="راننده ماشین گل")));
       return send({ok:true,source:"supabase",customers:customers||[],flower_truck_drivers,contracts:Array.isArray(contracts)?contracts:[]});
+    }
+    if(action==="customer_contract_reports") {
+      if(hasSupervisor) return send({ok:false,error:"manager_access_required_for_contract_reports"},403);
+      const contracts=await get("customer_contracts?select=id,customer_id,greenhouse,contract_start_date,contract_end_date,delivery_frequency,quantity_per_period,period_price_rial,unit_price_rial,notes,is_active&order=contract_start_date.desc&limit=500");
+      const active=(Array.isArray(contracts)?contracts:[]).filter((c:any)=>c.is_active!==false);
+      const ids=active.map((c:any)=>String(c.id));
+      const customerIds=[...new Set(active.map((c:any)=>String(c.customer_id)))];
+      const customers=customerIds.length?await get("customers?select=id,name&id=in.("+customerIds.map(encodeURIComponent).join(",")+")"): [];
+      const customerMap=new Map((Array.isArray(customers)?customers:[]).map((x:any)=>[String(x.id),x.name]));
+      const reports=[];
+      for(const c of active){
+        const [entitlements,allocations,shipments]=await Promise.all([
+          get("customer_contract_weekly_entitlements?select=week_start,quota_bundles,consumed_bundles&contract_id=eq."+encodeURIComponent(c.id)+"&order=week_start.asc"),
+          get("customer_contract_delivery_allocations?select=id,shipment_id,delivery_date,delivered_bundles,contract_bundles,future_bundles,extra_bundles,contract_amount_rial,extra_amount_rial,total_amount_rial,allocation_mode&contract_id=eq."+encodeURIComponent(c.id)+"&order=delivery_date.asc"),
+          get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status&customer_id=eq."+encodeURIComponent(c.customer_id)+"&greenhouse=eq."+encodeURIComponent(c.greenhouse)+"&order=shipped_at.asc&limit=2000")
+        ]);
+        const alloc=Array.isArray(allocations)?allocations:[];
+        const shipmentIds=[...new Set(alloc.map((x:any)=>String(x.shipment_id)).filter(Boolean))];
+        const invoices=shipmentIds.length?await get("invoices?select=id,shipment_id,amount_rial,net_sales_rial,status&shipment_id=in.("+shipmentIds.map(encodeURIComponent).join(",")+")"): [];
+        const inv=Array.isArray(invoices)?invoices:[];
+        const invoiceIds=inv.map((x:any)=>String(x.id));
+        const payments=invoiceIds.length?await get("payments?select=id,invoice_id,amount_rial,payment_date&invoice_id=in.("+invoiceIds.map(encodeURIComponent).join(",")+")"): [];
+        const paidByInvoice=new Map<string,number>();
+        for(const p of (Array.isArray(payments)?payments:[])){const k=String((p as any).invoice_id);paidByInvoice.set(k,(paidByInvoice.get(k)||0)+Number((p as any).amount_rial||0));}
+        const invoiceByShipment=new Map<string,any>();
+        for(const x of inv)invoiceByShipment.set(String((x as any).shipment_id),x);
+        reports.push({contract:{...c,customer_name:customerMap.get(String(c.customer_id))||"نامشخص"},entitlements:Array.isArray(entitlements)?entitlements:[],allocations:alloc,shipments:Array.isArray(shipments)?shipments:[],invoices:inv,payments:Array.isArray(payments)?payments:[],paid_by_invoice:Object.fromEntries(paidByInvoice),invoice_by_shipment:Object.fromEntries(invoiceByShipment)});
+      }
+      return send({ok:true,source:"supabase",currency:"IRR",reports});
     }
     if(action==="customer_contract_options") {
       if(hasSupervisor) return send({ok:false,error:"manager_access_required_for_contract_quota"},403);
