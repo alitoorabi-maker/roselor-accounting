@@ -785,13 +785,18 @@ Deno.serve(async (req: Request) => {
         });
         return send({ok:true,source:"supabase",currency:"IRR",customer_balances:allCustomers});
       }
-      const [unmatched,shipments,invoices]=await Promise.all([
+      const [unmatched,shipments,invoices,contractAllocations]=await Promise.all([
         get("bank_transactions?select=id,bank_account_id,transaction_type,amount_rial,transaction_at,balance_after_rial,raw_message,customer_id,status,needs_clarification,accounting_category&status=eq.unmatched&order=transaction_at.desc&limit=100"),
         get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status,declared_amount_rial,flower_truck,bucket_count&status=not.in.(cancelled,rejected)&order=shipped_at.desc&limit=200"),
-        get("invoices?select=shipment_id")
+        get("invoices?select=shipment_id"),
+        get("customer_contract_delivery_allocations?select=shipment_id")
       ]);
       const invoiceShipments=new Set((invoices||[]).map((x:any)=>x.shipment_id));
-      const shipments_without_invoice=(shipments||[]).filter((x:any)=>!invoiceShipments.has(x.id)).map((x:any)=>({...x,customer_name:names.get(x.customer_id)||"نامشخص"}));
+      // Contract shipments are already charged to the customer ledger by the
+      // allocation RPC. They must not appear in the manual "without invoice"
+      // queue, otherwise staff may invoice them a second time.
+      const contractAllocatedShipments=new Set((contractAllocations||[]).map((x:any)=>x.shipment_id));
+      const shipments_without_invoice=(shipments||[]).filter((x:any)=>!invoiceShipments.has(x.id)&&!contractAllocatedShipments.has(x.id)).map((x:any)=>({...x,customer_name:names.get(x.customer_id)||"نامشخص"}));
       return send({ok:true,source:"supabase",currency:"IRR",customer_balances,unmatched_transactions:unmatched,shipments_without_invoice});
     }
     if(action==="delete_shipment") {
