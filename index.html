@@ -1368,7 +1368,9 @@ body.invoices-page #invoices{max-width:100vw!important;overscroll-behavior-x:non
       alert("اشتراک اعلان این دستگاه ثبت و تأیید شد.");
     }catch(e){
       const message=e?.message||String(e);
-      if(/Android/i.test(navigator.userAgent)&&message.includes("Google Chrome")&&confirm(message+"\n\nمی‌خواهی همین صفحه در Chrome باز شود؟")){
+      if(/Android/i.test(navigator.userAgent)&&message.includes("Google Chrome")){
+        // Embedded Android WebViews often lack the Web Push and Notification APIs.
+        // Hand the current page to Chrome directly instead of leaving the user at a dead end.
         const target=location.host+location.pathname+location.search+location.hash;
         location.href="intent://"+target+"#Intent;scheme=https;package=com.android.chrome;end";
         return;
