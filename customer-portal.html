@@ -337,7 +337,7 @@ if(view==="invoices"){
  items=rows.map(x=>record("پرداخت",'<div>تاریخ: '+date(x.payment_date)+'</div><div class="value">'+fmt(x.amount_rial)+' ریال</div><div>توضیحات: '+esc(x.notes||"پرداخت ثبت‌شده")+'</div>')).join("");
 }else if(view==="shipments"){
  const invoicedShipmentIds=new Set((data.invoices||[]).map(x=>String(x.shipment_id)));
- rows=(data.shipments||[]).filter(x=>!invoicedShipmentIds.has(String(x.id)));
+ rows=(data.shipments||[]).filter(x=>x.status!=="pending_approval"&&!invoicedShipmentIds.has(String(x.id)));
  items=rows.map(x=>record("بار بدون فاکتور",'<div>تاریخ: '+date(x.shipped_at)+'</div><div>گلخانه: '+(x.greenhouse==="azna"?"ازنا":x.greenhouse==="khorramabad"?"خرم‌آباد":"—")+'</div><div class="value">'+fmt(x.quantity_bundles)+' دسته</div><div>وضعیت: '+esc(x.status||"ثبت‌شده")+'</div>')).join("");
 }else{
  rows=data.ledger||[];
