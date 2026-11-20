@@ -259,7 +259,7 @@ Deno.serve(async (req: Request) => {
   const writeActions=new Set(["reconcile_deposit","reconcile_withdrawal","create_bank_reconciliation_adjustment","create_shipment","delete_shipment","create_invoice_for_shipment","create_vendor","update_vendor","create_returned_bucket","create_driver_bucket_return","review_driver_freight_request","save_daily_harvest"]);
   const section=sectionByAction[action];if(!metadataAdmin&&section){const p=sectionPermissions[section];if(!p?.view)return send({ok:false,error:"section_access_denied",section},403);if(writeActions.has(action)&&!p.write)return send({ok:false,error:"section_write_denied",section},403);}
 
-  const readOnlyActions=["overview","customer_balances","customer_ledger","transaction_ledger","unmatched_transactions","shipments_without_invoice","monthly_sales_monitor","bank_balance_reconciliation","daily_harvest_summary","monthly_shipment_summary","returned_buckets","driver_freight_requests"];
+  const readOnlyActions=["overview","customer_balances","customer_ledger","transaction_ledger","unmatched_transactions","shipments_without_invoice","monthly_sales_monitor","bank_balance_reconciliation","daily_harvest_summary","cold_storage_summary","monthly_shipment_summary","returned_buckets","driver_freight_requests"];
   if(isReadOnly && !readOnlyActions.includes(action) && !(accessRows.some((x:any)=>x.role==="supervisor")&&["daily_harvest_summary","save_daily_harvest"].includes(action))) return send({ok:false,error:"read_only_access"},403);
   let scopedAccountIds=new Set<string>(), scopedWriteAccountIds=new Set<string>();
   if(!metadataAdmin) {
