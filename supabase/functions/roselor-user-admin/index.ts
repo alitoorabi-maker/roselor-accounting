@@ -71,6 +71,8 @@ Deno.serve(async(req:Request)=>{
      } else if(customerId){
        if(!username&&emailInput){username=emailInput.split("@")[0].toLowerCase().replace(/[^a-z0-9._-]/g,"").slice(0,32)}
        if(!/^[a-z0-9._-]{3,32}$/.test(username)) return out(req,{ok:false,error:"valid_username_required_for_customer"},400);
+       const customerLink=await call("/rest/v1/customer_portal_user_access?select=user_id,username,is_active&customer_id=eq."+encodeURIComponent(customerId)+"&limit=1");
+       if(Array.isArray(customerLink)&&customerLink.length) return out(req,{ok:false,error:"customer_already_has_portal_account",existing_username:customerLink[0].username||null,existing_user_id:customerLink[0].user_id||null},409);
        const duplicate=await call("/rest/v1/customer_portal_user_access?select=user_id&username=eq."+encodeURIComponent(username)+"&limit=1");
        if(Array.isArray(duplicate)&&duplicate.length) return out(req,{ok:false,error:"username_already_exists"},409);
      } else if(userType!=="supervisor"&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput)) {
