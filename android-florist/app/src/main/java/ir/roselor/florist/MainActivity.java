@@ -26,7 +26,7 @@ public class MainActivity extends Activity {
     private WebView web;
     private LinearLayout root;
     private View splash;
-    private static final String PORTAL_URL = "https://alitoorabi-maker.github.io/roselor-accounting/customer-portal.html";
+    private static final String PORTAL_URL = "https://alitoorabi-maker.github.io/roselor-accounting/customer-portal.html?app_build=1.0.3";
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -67,6 +67,8 @@ public class MainActivity extends Activity {
         web = new WebView(this);
         web.setVisibility(View.GONE);
         web.getSettings().setJavaScriptEnabled(true);
+        web.getSettings().setCacheMode(android.webkit.WebSettings.LOAD_NO_CACHE);
+        web.clearCache(true);
         web.getSettings().setDomStorageEnabled(true);
         web.getSettings().setDatabaseEnabled(true);
         web.getSettings().setSafeBrowsingEnabled(true);
@@ -87,7 +89,7 @@ public class MainActivity extends Activity {
         web.setWebChromeClient(new WebChromeClient());
         root.addView(web, new LinearLayout.LayoutParams(-1, 0, 1f));
         TextView version = new TextView(this);
-        version.setText("رز لر | گل‌فروش · نسخه 1.0.2");
+        version.setText("رز لر | گل‌فروش · نسخه 1.0.3");
         version.setTextColor(Color.rgb(151,171,157));
         version.setTextSize(10);
         version.setGravity(Gravity.CENTER);
