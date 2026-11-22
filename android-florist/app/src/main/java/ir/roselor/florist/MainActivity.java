@@ -85,6 +85,11 @@ public class MainActivity extends Activity {
                 String token = getSharedPreferences("roselor_florist", MODE_PRIVATE).getString("fcm_token", "");
                 if (token != null && !token.isEmpty()) dispatchToken(token);
             }
+
+            @Override public void onReceivedError(WebView view, android.webkit.WebResourceRequest request, android.webkit.WebResourceError error) {
+                super.onReceivedError(view, request, error);
+                if (request != null && request.isForMainFrame()) showOfflinePage();
+            }
         });
         web.setWebChromeClient(new WebChromeClient());
         root.addView(web, new LinearLayout.LayoutParams(-1, 0, 1f));
@@ -97,6 +102,17 @@ public class MainActivity extends Activity {
         root.addView(version, new LinearLayout.LayoutParams(-1,-2));
         setContentView(root);
         web.loadUrl(PORTAL_URL);
+    }
+
+    private void showOfflinePage() {
+        String html = "<!doctype html><html lang='fa' dir='rtl'><meta name='viewport' content='width=device-width,initial-scale=1'><meta charset='utf-8'><style>" +
+                "body{margin:0;background:#061a12;color:#f3c45b;font-family:sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center}" +
+                ".card{padding:32px 24px;max-width:340px}.brand{font-size:30px;font-weight:bold;margin-bottom:22px}.msg{font-size:17px;line-height:2;color:#e6eee8}.hint{font-size:13px;color:#aebeb2;margin:14px 0 26px}" +
+                "button{border:0;border-radius:12px;padding:13px 30px;background:#f3c45b;color:#061a12;font-size:16px;font-weight:bold}</style>" +
+                "<div class='card'><div class='brand'>رز لر</div><div class='msg'>اتصال اینترنت برقرار نیست</div>" +
+                "<div class='hint'>لطفاً اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.</div>" +
+                "<button onclick='if(window.RoselorAndroid){RoselorAndroid.retryPortal()}'>تلاش دوباره</button></div></html>";
+        web.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
     }
 
     private int dp(int value) { return (int)(value * getResources().getDisplayMetrics().density + 0.5f); }
@@ -125,6 +141,9 @@ public class MainActivity extends Activity {
     }
 
     private class AndroidBridge {
+        @JavascriptInterface public void retryPortal() {
+            runOnUiThread(() -> web.loadUrl(PORTAL_URL));
+        }
         @JavascriptInterface public void requestNotificationPermission() {
             runOnUiThread(() -> {
                 if (Build.VERSION.SDK_INT < 33 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
