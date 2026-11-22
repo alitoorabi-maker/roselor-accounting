@@ -282,6 +282,7 @@ async function loadAverage(){
       throw Error(average?.error||average?.detail||"میانگین تأیید نشد");
     }
 
+    const preTotals=average.totals||{};const preBundles=Number(preTotals.khorramabad?.bundles||0)+Number(preTotals.azna?.bundles||0);const currentRange=monthRangeFor(new Date());if(preBundles===0&&range.label===currentRange.label&&select){const previousRange=monthRangeFor(new Date(Date.parse(range.start)-86400000));const previousOption=[...select.options].find(x=>x.value===previousRange.label);if(previousOption){select.value=previousOption.value;return loadAverage()}}
     const totals=average.totals||{};
     const kh=totals.khorramabad||{amount_rial:0,bundles:0};
     const az=totals.azna||{amount_rial:0,bundles:0};
