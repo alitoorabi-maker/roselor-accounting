@@ -945,7 +945,7 @@ function renderS(){
  E("shipList").innerHTML=summary+visibleShips.map(x=>{
   const greenhouse=x.greenhouse==="azna"?"ازنا":x.greenhouse==="khorramabad"?"خرم‌آباد":"نامشخص";
   const notificationStatus=String(x.notification_status||"unknown");
-  const notificationLabels={sent:"اعلان ارسال شد",failed:"ارسال اعلان ناموفق",pending:"در انتظار ارسال اعلان",unknown:"وضعیت اعلان نامشخص",not_applicable:"اعلان مشتری اعمال نمی‌شود"};
+  const notificationLabels={sent:"ارسال به سرویس اعلان تأیید شد",failed:"ارسال اعلان ناموفق",pending:"در انتظار ارسال اعلان",unknown:"وضعیت اعلان نامشخص",not_applicable:"اعلان مشتری اعمال نمی‌شود"};
   const notificationClass=["sent","failed","pending","unknown"].includes(notificationStatus)?notificationStatus:"unknown";
   const notificationMarkup='<span class="shipment-notification-status '+notificationClass+'">'+(notificationLabels[notificationStatus]||notificationLabels.unknown)+'</span>'+(isRoselorAdmin()&&notificationStatus!=="sent"&&notificationStatus!=="not_applicable"?'<div style="margin-top:7px"><button type="button" class="btn ghost" data-retry-shipment-notification="'+esc(x.id)+'">ارسال مجدد اعلان</button></div>':"");
 
@@ -1299,7 +1299,7 @@ if ("serviceWorker" in navigator && location.protocol === "https:") {
    const d=await api("resend_shipment_notifications",{shipment_ids:ids});
    if(!d||d.ok!==true||d.verified!==true)throw Error(d?.error||"تأیید ثبت نتیجه ارسال از سرور دریافت نشد");
    const ok=d.results?.filter(x=>x.status==="sent").length||0,failed=d.results?.filter(x=>x.status==="failed").length||0;
-   sayNotification("نتیجه: "+ok+" گروه مشتری با موفقیت به حداقل یک دستگاه ارسال شد؛ "+failed+" گروه ناموفق بود.",failed>0);
+   sayNotification("نتیجه: "+ok+" گروه مشتری؛ سرویس اعلان حداقل یک دستگاه را پذیرفت؛ "+failed+" گروه ناموفق بود.",failed>0);
    await Promise.all([loadQueue(),loadS()]);
   }catch(e){sayNotification("ارسال مجدد انجام نشد: "+(e.message||e),true);}
   finally{if(button)button.disabled=false;}
