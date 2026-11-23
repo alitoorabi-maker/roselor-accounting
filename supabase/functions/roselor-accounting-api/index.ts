@@ -979,10 +979,18 @@ Deno.serve(async (req: Request) => {
 if(action==="driver_bucket_ledger") {
  const [ledger,shipments,vendors]=await Promise.all([
   get("driver_bucket_ledger?select=id,greenhouse,driver_name,event_type,bucket_count,event_at,shipment_id,notes,created_at&order=event_at.desc&limit=10000"),
-  get("shipments?select=greenhouse,flower_truck&order=shipped_at.desc&limit=10000"),
+  get("shipments?select=id,greenhouse,flower_truck,status&order=shipped_at.desc&limit=10000"),
   get("vendors?select=name,flower_truck_driver,city,is_active&limit=5000")
  ]);
- const allowedRows=(Array.isArray(ledger)?ledger:[]).filter((r:any)=>allowedGreenhouses.has(r.greenhouse));
+ // Bucket issues linked to shipments count only while the shipment is actually sent or delivered.
+ // Rejected, cancelled, pending-approval, and missing/deleted shipments must never increase a driver's balance.
+ const eligibleShipmentIds=new Set((Array.isArray(shipments)?shipments:[])
+  .filter((s:any)=>["sent","delivered"].includes(String(s.status||"").trim().toLowerCase()))
+  .map((s:any)=>String(s.id)));
+ const allowedRows=(Array.isArray(ledger)?ledger:[]).filter((r:any)=>
+  allowedGreenhouses.has(r.greenhouse) &&
+  (r.event_type!=="issued" || !r.shipment_id || eligibleShipmentIds.has(String(r.shipment_id)))
+ );
  const driverSet=new Map<string,{greenhouse:string,driver_name:string}>();
  for(const s of (Array.isArray(shipments)?shipments:[])) if(allowedGreenhouses.has(s.greenhouse)&&String(s.flower_truck||"").trim()) driverSet.set(s.greenhouse+"|"+String(s.flower_truck).trim(),{greenhouse:s.greenhouse,driver_name:String(s.flower_truck).trim()});
  for(const v of (Array.isArray(vendors)?vendors:[])) if(v.is_active!==false&&String(v.name||"").trim()==="آرمین امجدی"){const city=String(v.city||"").toLowerCase();const gh=city.includes("ازنا")?"azna":(city.includes("خرم")?"khorramabad":"");if(gh&&allowedGreenhouses.has(gh))driverSet.set(gh+"|"+String(v.name).trim(),{greenhouse:gh,driver_name:String(v.name).trim()});}
