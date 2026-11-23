@@ -14,7 +14,7 @@ async function loadShipments(){
  const box=$("shipments");
  box.textContent="در حال دریافت…";
  try{
-  const d=await call("my_shipments"),items=d.shipments||[];
+  const d=await call("my_shipments"),items=(Array.isArray(d.shipments)?d.shipments:[]).filter(x=>!["rejected","cancelled","pending_approval"].includes(String(x.status||"").toLowerCase()));
   box.innerHTML=items.length?items.map(x=>{
    const delivered=x.status==="delivered";
    return `<div class="shipment"><div class="row"><input type="checkbox" class="pick" value="${safe(x.id)}" ${delivered?"disabled":""}><div style="flex:1"><div class="title">نام مشتری: ${safe(x.customer_name||x.customer?.name||"نامشخص")}</div><div class="muted">${fmtDate(x.shipped_at)} • ${safe(x.quantity_bundles)} دسته • تعداد سطل: ${safe(x.bucket_count||0)}</div><div class="muted">وضعیت: ${delivered?"تحویل‌شده":"در مسیر"}</div></div><span class="pill">${delivered?"تحویل":"بار"}</span></div>${!delivered?`<button class="secondary delivered" data-id="${safe(x.id)}">تأیید تحویل بار</button>`:""}</div>`;
