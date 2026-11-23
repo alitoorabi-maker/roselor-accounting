@@ -385,6 +385,7 @@ $("listContent").innerHTML=(rows.length||view==="ledger"||view==="payments")?gro
 if(view==="payments"){
  const paymentInput=$("paymentFromDate");if(paymentInput){const paymentCard=paymentInput.closest(".card");const paymentGroup=paymentInput.closest("details");if(paymentCard&&paymentGroup)paymentGroup.parentNode.insertBefore(paymentCard,paymentGroup);}
  const from=$("paymentFromDate"),to=$("paymentToDate"),summary=$("paymentRangeSummary"),count=$("paymentRangeCount");
+ from.onclick=()=>jalaliDatePicker("paymentFromDate");to.onclick=()=>jalaliDatePicker("paymentToDate");
  const updatePaymentRange=()=>{
   const a=from.dataset.iso||"",b=to.dataset.iso||"";
   if(a&&b&&a>b){summary.textContent="تاریخ شروع نباید بعد از تاریخ پایان باشد.";count.textContent="";return;}
