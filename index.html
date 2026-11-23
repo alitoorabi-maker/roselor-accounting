@@ -1312,6 +1312,7 @@ if ("serviceWorker" in navigator && location.protocol === "https:") {
  list.addEventListener("click",e=>{const b=e.target.closest("[data-retry-one]");if(!b)return;retry([b.dataset.retryOne],b);});
  $("shipList")?.addEventListener("click",e=>{const b=e.target.closest("[data-retry-shipment-notification]");if(!b)return;retry([b.dataset.retryShipmentNotification],b);});
  window.refreshShipmentNotificationFab=()=>{if(typeof isRoselorAdmin==="function"&&isRoselorAdmin()){fab.classList.remove("hidden");loadQueue().catch(()=>{});}else fab.classList.add("hidden");};
+ if(typeof isRoselorAdmin==="function"&&isRoselorAdmin())fab.classList.remove("hidden");
 })();
 </script>
 </body></html>
