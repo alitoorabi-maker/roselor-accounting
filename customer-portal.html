@@ -386,7 +386,7 @@ if(view==="payments"){
  const paymentInput=$("paymentFromDate");if(paymentInput){const paymentCard=paymentInput.closest(".card");const paymentGroup=paymentInput.closest("details");if(paymentCard&&paymentGroup)paymentGroup.parentNode.insertBefore(paymentCard,paymentGroup);}
  const from=$("paymentFromDate"),to=$("paymentToDate"),summary=$("paymentRangeSummary"),count=$("paymentRangeCount");
  const updatePaymentRange=()=>{
-  const a=from.value,b=to.value;
+  const a=from.dataset.iso||"",b=to.dataset.iso||"";
   if(a&&b&&a>b){summary.textContent="تاریخ شروع نباید بعد از تاریخ پایان باشد.";count.textContent="";return;}
   const selected=rows.filter(x=>{const d=String(x.payment_date||"").slice(0,10);return d&&(!a||d>=a)&&(!b||d<=b);});
   if(!a&&!b){summary.textContent="برای مشاهده جمع واریزی، بازه را انتخاب کنید.";count.textContent="";$("paymentRows").innerHTML=rows.map(x=>record("پرداخت",'<div>تاریخ: '+date(x.payment_date)+'</div><div class="value">'+fmt(x.amount_rial)+' ریال</div><div>توضیحات: '+esc(x.notes||"پرداخت ثبت‌شده")+'</div>')).join("");return;}
@@ -396,7 +396,7 @@ if(view==="payments"){
   $("paymentRows").innerHTML=selected.length?selected.map(x=>record("پرداخت",'<div>تاریخ: '+date(x.payment_date)+'</div><div class="value">'+fmt(x.amount_rial)+' ریال</div><div>توضیحات: '+esc(x.notes||"پرداخت ثبت‌شده")+'</div>')).join(""):'<div class="card muted">در این بازه پرداختی ثبت نشده است.</div>';
  };
  from.addEventListener("change",updatePaymentRange);to.addEventListener("change",updatePaymentRange);
- $("clearPaymentRange").addEventListener("click",()=>{from.value="";to.value="";updatePaymentRange()});
+ $("clearPaymentRange").addEventListener("click",()=>{from.value="";to.value="";from.dataset.iso="";to.dataset.iso="";updatePaymentRange()});
 }
 }
 try{initAverageMonths();}catch(e){console.error("ماه‌های پنل:",e);status("loginMsg","خطا در آماده‌سازی پنل؛ صفحه را دوباره بارگذاری کنید.","error");} $("loginBtn").type="button";$("loginBtn").onclick=login;$("password").onkeydown=e=>{if(e.key==="Enter")login()};$("refreshAvg").onclick=loadAverage;$("avgMonthSelect").onchange=loadAverage;document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>renderList(b.dataset.view));$("refreshPortalBtn").onclick=refreshPortalAll;["paymentFromDate","paymentToDate"].forEach(id=>{const el=$(id);if(el){el.type="text";el.readOnly=true;el.onclick=()=>jalaliDatePicker(id)}});restorePortalSession();$("logoutBtn").onclick=()=>{session=null;data=null;average=null;try{sessionStorage.removeItem("roselor_florist_session_v1")}catch(e){}$("portal").classList.add("hidden");$("login").classList.remove("hidden");document.querySelector(".wrap").classList.remove("portal-signed-in");$("password").value="";$("conn").textContent="ورود امن"};
