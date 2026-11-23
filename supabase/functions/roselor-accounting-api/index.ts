@@ -58,7 +58,7 @@ Deno.serve(async (req: Request) => {
   const metadataAdmin=meta.accounting_admin===true || meta.role==="admin";
   let body:any; try { body=await req.json(); } catch { return send({ok:false,error:"invalid_json"},400); }
   const action=body.action;
-  const allowed=["my_access","overview","customer_balances","customer_ledger","customer_ledger_event_detail","create_customer_discount_adjustment","create_customer_balance_adjustment","delete_customer_account_adjustment","transfer_customer_balance","transaction_ledger","unmatched_transactions","shipments_without_invoice","monthly_sales_monitor","bank_balance_reconciliation","create_invoice_for_shipment","pending_supervisor_invoices","approve_supervisor_invoice","create_shipment","customer_contract_options","customer_contract_reports","delete_shipment","shipment_form_options","reconcile_deposit","reconcile_withdrawal","create_bank_reconciliation_adjustment","vendor_options","create_vendor","update_vendor","daily_harvest_summary","cold_storage_summary","delete_daily_harvest","monthly_shipment_summary","returned_buckets","create_returned_bucket","driver_bucket_ledger","delete_driver_bucket_ledger","create_driver_bucket_return","pending_driver_bucket_returns","review_driver_bucket_return","driver_freight_requests","review_driver_freight_request","pending_supervisor_shipments","review_supervisor_shipment","pending_supervisor_harvests","review_supervisor_harvest","driver_delivery_confirmations","save_daily_harvest","supervisor_bucket_form_options","supervisor_bucket_requests","submit_supervisor_bucket_return","customer_sms_customers","customer_sms_history","customer_sms_template"];
+  const allowed=["my_access","overview","customer_balances","customer_ledger","customer_ledger_event_detail","create_customer_discount_adjustment","create_customer_balance_adjustment","delete_customer_account_adjustment","transfer_customer_balance","transaction_ledger","unmatched_transactions","shipments_without_invoice","monthly_sales_monitor","bank_balance_reconciliation","create_invoice_for_shipment","pending_supervisor_invoices","approve_supervisor_invoice","create_shipment","resend_today_shipment_notifications","customer_contract_options","customer_contract_reports","delete_shipment","shipment_form_options","reconcile_deposit","reconcile_withdrawal","create_bank_reconciliation_adjustment","vendor_options","create_vendor","update_vendor","daily_harvest_summary","cold_storage_summary","delete_daily_harvest","monthly_shipment_summary","returned_buckets","create_returned_bucket","driver_bucket_ledger","delete_driver_bucket_ledger","create_driver_bucket_return","pending_driver_bucket_returns","review_driver_bucket_return","driver_freight_requests","review_driver_freight_request","pending_supervisor_shipments","review_supervisor_shipment","pending_supervisor_harvests","review_supervisor_harvest","driver_delivery_confirmations","save_daily_harvest","supervisor_bucket_form_options","supervisor_bucket_requests","submit_supervisor_bucket_return","customer_sms_customers","customer_sms_history","customer_sms_template"];
   if(!allowed.includes(action)) return send({ok:false,error:"unsupported_action",allowed},400);
   const key=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if(!key) return send({ok:false,error:"server_configuration_missing"},500);
@@ -516,6 +516,39 @@ Deno.serve(async (req: Request) => {
       if(!contract) return send({ok:true,contract:null});
       const entitlements=await get("customer_contract_weekly_entitlements?select=week_start,quota_bundles,consumed_bundles&contract_id=eq."+encodeURIComponent(contract.id)+"&order=week_start.asc");
       return send({ok:true,contract,entitlements:Array.isArray(entitlements)?entitlements:[]});
+    }
+    if(action==="resend_today_shipment_notifications") {
+      if(!metadataAdmin) return send({ok:false,error:"admin_only"},403);
+      const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Tehran",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());
+      const dateParts:any={};for(const p of parts)if(p.type!=="literal")dateParts[p.type]=p.value;
+      const today=String(dateParts.year)+"-"+String(dateParts.month)+"-"+String(dateParts.day);
+      const [yy,mm,dd]=today.split("-").map(Number);
+      const start=new Date(Date.UTC(yy,mm-1,dd)-210*60000).toISOString();
+      const end=new Date(Date.UTC(yy,mm-1,dd+1)-210*60000).toISOString();
+      const rows=await get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status,created_at&status=eq.sent&created_at=gte."+encodeURIComponent(start)+"&created_at=lt."+encodeURIComponent(end)+"&order=created_at.asc&limit=500");
+      const shipments=Array.isArray(rows)?rows:[];
+      if(!shipments.length)return send({ok:true,verified:true,date:today,total:0,results:[]});
+      const customerIds=[...new Set(shipments.map((x:any)=>String(x.customer_id||"")).filter(Boolean))];
+      const customerRows=customerIds.length?await get("customers?select=id,name&id=in.("+customerIds.map(encodeURIComponent).join(",")+")"):[];
+      const names=new Map((Array.isArray(customerRows)?customerRows:[]).map((x:any)=>[String(x.id),String(x.name||"مشتری")]));
+      const groups=new Map<string,any[]>();
+      for(const sh of shipments){const id=String(sh.customer_id||"");if(!id)continue;const list=groups.get(id)||[];list.push(sh);groups.set(id,list);}
+      const results:any[]=[];
+      for(const [customerId,list] of groups){
+        const details=list.map((x:any)=>String(x.quantity_bundles)+" دسته از "+(x.greenhouse==="azna"?"گلخانه ازنا":"گلخانه خرم‌آباد")+" برای تحویل "+(jalaliDateFromTimestamp(String(x.shipped_at||""))||"تاریخ نامشخص"));
+        const title="رز لر · یادآوری بار ارسالی";
+        const message="سلام "+(names.get(customerId)||"")+"، بار ثبت‌شده امروز: "+details.join("؛ ")+" . برای مشاهده جزئیات وارد پنل رز لر شوید.";
+        try{
+          const response=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:publishable,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send_customer",customer_id:customerId,title,body:message,url:"./customer-portal.html"})});
+          const result=await response.json().catch(()=>({ok:false,error:"invalid_push_response"}));
+          const delivered=Number(result.sent||0)+Number(result.fcmSent||0);
+          const failed=Number(result.failed||0)+Number(result.fcmFailed||0);
+          results.push({customer_id:customerId,customer_name:names.get(customerId)||"مشتری",shipment_count:list.length,bundles:list.reduce((n:number,x:any)=>n+Number(x.quantity_bundles||0),0),sent:delivered,failed,error:!response.ok?(result.error||"push_http_"+response.status):(delivered===0?"no_delivery_confirmed":null)});
+        }catch(e){results.push({customer_id:customerId,customer_name:names.get(customerId)||"مشتری",shipment_count:list.length,bundles:list.reduce((n:number,x:any)=>n+Number(x.quantity_bundles||0),0),sent:0,failed:0,error:String(e).slice(0,240)});}
+      }
+      const totalSent=results.reduce((n:number,x:any)=>n+Number(x.sent||0),0);
+      const totalFailed=results.reduce((n:number,x:any)=>n+Number(x.failed||0),0);
+      return send({ok:true,verified:true,date:today,total:shipments.length,customers:results.length,totalSent,totalFailed,results});
     }
     if(action==="create_shipment") {
       const customerId=typeof body.customer_id==="string"?body.customer_id.trim():"";
