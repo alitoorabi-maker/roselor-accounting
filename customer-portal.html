@@ -342,7 +342,9 @@ if(view==="invoices"){
  items=summary+rows.map(x=>{const sh=(data.shipments||[]).find(s=>s.id===x.shipment_id)||{};const gh=sh.greenhouse==="azna"?"ازنا":sh.greenhouse==="khorramabad"?"خرم‌آباد":"—";const q=Math.max(0,Number(sh.quantity_bundles||0));const gross=Number(x.amount_rial||0),net=Number(x.net_sales_rial??x.amount_rial??0);const avg=q?Math.round(gross/q):0;const avgNet=q?Math.round(net/q):0;return record("فاکتور",'<div>شناسه: <strong>'+esc(x.id)+'</strong></div><div>تاریخ: '+date(x.invoice_date)+'</div><div>گلخانه: '+gh+'</div><div>وضعیت: '+esc(x.status||"ثبت‌شده")+'</div><div>تعداد دسته: <strong>'+fmt(q)+' دسته</strong></div><div>میانگین ناخالص هر دسته: <strong>'+fmt(avg)+' ریال</strong></div><div>میانگین نهایی هر دسته: <strong>'+fmt(avgNet)+' ریال</strong></div><div>مبلغ ناخالص: <strong>'+fmt(gross)+' ریال</strong></div><div>کسورات: '+fmt(x.commission_rial)+' ریال</div><div>مبلغ نهایی: <strong>'+fmt(net)+' ریال</strong></div>')}).join("");
 }else if(view==="payments"){
  rows=data.payments||[];
- items=rows.map(x=>record("پرداخت",'<div>تاریخ: '+date(x.payment_date)+'</div><div class="value">'+fmt(x.amount_rial)+' ریال</div><div>توضیحات: '+esc(x.notes||"پرداخت ثبت‌شده")+'</div>')).join("");
+ const controls='<div class="card" style="margin-bottom:12px"><strong>جمع واریزی در بازه زمانی</strong><div class="grid" style="margin-top:10px"><div class="field"><label for="paymentFromDate">از تاریخ</label><input id="paymentFromDate" type="date" class="cmd"></div><div class="field"><label for="paymentToDate">تا تاریخ</label><input id="paymentToDate" type="date" class="cmd"></div></div><div id="paymentRangeSummary" class="value" style="margin-top:12px">برای مشاهده جمع واریزی، بازه را انتخاب کنید.</div><div id="paymentRangeCount" class="sub"></div><button id="clearPaymentRange" class="btn ghost" type="button" style="margin-top:10px">پاک‌کردن بازه</button></div>';
+ const paymentRows=rows.map(x=>record("پرداخت",'<div>تاریخ: '+date(x.payment_date)+'</div><div class="value">'+fmt(x.amount_rial)+' ریال</div><div>توضیحات: '+esc(x.notes||"پرداخت ثبت‌شده")+'</div>')).join("");
+ items=controls+'<div id="paymentRows">'+paymentRows+'</div>';
 }else if(view==="shipments"){
  const invoicedShipmentIds=new Set((data.invoices||[]).map(x=>String(x.shipment_id)));
  rows=(data.shipments||[]).filter(x=>!["pending_approval","rejected","cancelled"].includes(String(x.status||"").toLowerCase())&&!invoicedShipmentIds.has(String(x.id)));
@@ -359,6 +361,21 @@ if(view==="invoices"){
  }).join("")+rows.map(x=>record("رویداد حسابداری",'<div>شرح: '+esc(x.description||x.source_type||"رویداد حسابداری")+'</div><div>گلخانه: '+(x.greenhouse==="azna"?"ازنا":x.greenhouse==="khorramabad"?"خرم‌آباد":"مشترک")+'</div><div>تاریخ: '+date(x.event_at)+'</div><div>بدهکار: '+fmt(x.debit_rial)+' ریال</div><div>بستانکار: '+fmt(x.credit_rial)+' ریال</div><div class="value">مانده پس از رویداد: '+fmt(x.balance_after_rial)+' ریال</div>')).join("");
 }
 $("listContent").innerHTML=rows.length||view==="ledger"?group(names[view],view==="ledger"?rows.length+2:rows.length,items):'<div class="card muted">اطلاعاتی برای نمایش وجود ندارد.</div>';
+if(view==="payments"){
+ const from=$("paymentFromDate"),to=$("paymentToDate"),summary=$("paymentRangeSummary"),count=$("paymentRangeCount");
+ const updatePaymentRange=()=>{
+  const a=from.value,b=to.value;
+  if(a&&b&&a>b){summary.textContent="تاریخ شروع نباید بعد از تاریخ پایان باشد.";count.textContent="";return;}
+  const selected=rows.filter(x=>{const d=String(x.payment_date||"").slice(0,10);return d&&(!a||d>=a)&&(!b||d<=b);});
+  if(!a&&!b){summary.textContent="برای مشاهده جمع واریزی، بازه را انتخاب کنید.";count.textContent="";$("paymentRows").innerHTML=rows.map(x=>record("پرداخت",'<div>تاریخ: '+date(x.payment_date)+'</div><div class="value">'+fmt(x.amount_rial)+' ریال</div><div>توضیحات: '+esc(x.notes||"پرداخت ثبت‌شده")+'</div>')).join("");return;}
+  const total=selected.reduce((sum,x)=>sum+Number(x.amount_rial||0),0);
+  summary.textContent="جمع واریزی: "+fmt(total)+" ریال";
+  count.textContent=fmt(selected.length)+" پرداخت در بازه انتخابی";
+  $("paymentRows").innerHTML=selected.length?selected.map(x=>record("پرداخت",'<div>تاریخ: '+date(x.payment_date)+'</div><div class="value">'+fmt(x.amount_rial)+' ریال</div><div>توضیحات: '+esc(x.notes||"پرداخت ثبت‌شده")+'</div>')).join(""):'<div class="card muted">در این بازه پرداختی ثبت نشده است.</div>';
+ };
+ from.addEventListener("change",updatePaymentRange);to.addEventListener("change",updatePaymentRange);
+ $("clearPaymentRange").addEventListener("click",()=>{from.value="";to.value="";updatePaymentRange()});
+}
 }
 try{initAverageMonths();}catch(e){console.error("ماه‌های پنل:",e);status("loginMsg","خطا در آماده‌سازی پنل؛ صفحه را دوباره بارگذاری کنید.","error");} $("loginBtn").type="button";$("loginBtn").onclick=login;$("password").onkeydown=e=>{if(e.key==="Enter")login()};$("refreshAvg").onclick=loadAverage;$("avgMonthSelect").onchange=loadAverage;document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>renderList(b.dataset.view));const portalHeader=document.querySelector(".florist-welcome");if(portalHeader){portalHeader.title="برای به‌روزرسانی کامل پنل لمس کنید";portalHeader.setAttribute("role","button");portalHeader.setAttribute("tabindex","0");portalHeader.setAttribute("aria-label","به‌روزرسانی کامل پنل گل‌فروش");portalHeader.addEventListener("click",refreshPortalAll);portalHeader.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();refreshPortalAll()}})}restorePortalSession();$("logoutBtn").onclick=()=>{session=null;data=null;average=null;try{sessionStorage.removeItem("roselor_florist_session_v1")}catch(e){}$("portal").classList.add("hidden");$("login").classList.remove("hidden");document.querySelector(".wrap").classList.remove("portal-signed-in");$("password").value="";$("conn").textContent="ورود امن"};
 </script></html>
