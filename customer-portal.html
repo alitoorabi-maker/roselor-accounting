@@ -359,7 +359,7 @@ if(view==="invoices"){
   return record("مانده حساب · "+g.label,'<div class="value">'+fmt(debt)+' ریال</div>'+(credit?'<div>اعتبار مشتری: '+fmt(credit)+' ریال</div>':'')+'<div>مانده افتتاحیه: '+fmt(opening)+' ریال</div><div>گردش خالص: '+fmt(movements)+' ریال</div>');
  }).join("")+rows.map(x=>record("رویداد حسابداری",'<div>شرح: '+esc(x.description||x.source_type||"رویداد حسابداری")+'</div><div>گلخانه: '+(x.greenhouse==="azna"?"ازنا":x.greenhouse==="khorramabad"?"خرم‌آباد":"مشترک")+'</div><div>تاریخ: '+date(x.event_at)+'</div><div>بدهکار: '+fmt(x.debit_rial)+' ریال</div><div>بستانکار: '+fmt(x.credit_rial)+' ریال</div><div class="value">مانده پس از رویداد: '+fmt(x.balance_after_rial)+' ریال</div>')).join("");
 }
-$("listContent").innerHTML=rows.length||view==="ledger"?group(names[view],view==="ledger"?rows.length+2:rows.length,items):'<div class="card muted">اطلاعاتی برای نمایش وجود ندارد.</div>';
+$("listContent").innerHTML=(rows.length||view==="ledger"||view==="payments")?group(names[view],view==="ledger"?rows.length+2:rows.length,items):'<div class="card muted">اطلاعاتی برای نمایش وجود ندارد.</div>';
 if(view==="payments"){
  const paymentInput=$("paymentFromDate");if(paymentInput){const paymentCard=paymentInput.closest(".card");const paymentGroup=paymentInput.closest("details");if(paymentCard&&paymentGroup)paymentGroup.parentNode.insertBefore(paymentCard,paymentGroup);}
  const from=$("paymentFromDate"),to=$("paymentToDate"),summary=$("paymentRangeSummary"),count=$("paymentRangeCount");
