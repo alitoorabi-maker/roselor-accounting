@@ -3,7 +3,8 @@ on:
   push:
     branches: [main]
     paths:
-      - "supervisor-portal.html"
+      - "index.html"
+      - "*.html"
       - ".github/workflows/supervisor-pages.yml"
   workflow_dispatch:
 permissions:
@@ -25,8 +26,9 @@ jobs:
       - name: Prepare portal
         run: |
           mkdir -p public
-          cp supervisor-portal.html public/index.html
-          cp supervisor-portal.html public/supervisor-portal.html
+          cp ./*.html public/
+          test -s public/index.html
+          test -s public/supervisor-portal.html
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
