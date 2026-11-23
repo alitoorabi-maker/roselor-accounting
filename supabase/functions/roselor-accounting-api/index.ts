@@ -544,8 +544,8 @@ Deno.serve(async (req: Request) => {
     }
     if(action==="shipment_notification_queue") {
       if(!metadataAdmin) return send({ok:false,error:"admin_only"},403);
-      const todayParts=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Tehran",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const todayMap:any={};for(const p of todayParts)if(p.type!=="literal")todayMap[p.type]=p.value;const recentStart=new Date(Date.UTC(Number(todayMap.year),Number(todayMap.month)-1,Number(todayMap.day)-7)-210*60000).toISOString();
-      const rows=await get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status,notification_status,notification_last_attempt_at,notification_sent_at,notification_sent_count,notification_failed_count,notification_error&status=eq.sent&notification_status=in.(pending,failed,unknown)&shipped_at=gte."+encodeURIComponent(recentStart)+"&order=shipped_at.asc,id.asc&limit=500");
+      const targetShipmentDate="2026-11-24";
+      const rows=await get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status,notification_status,notification_last_attempt_at,notification_sent_at,notification_sent_count,notification_failed_count,notification_error&status=eq.sent&notification_status=in.(pending,failed,unknown)&shipped_at=eq."+targetShipmentDate+"&order=shipped_at.asc,id.asc&limit=500");
       const list=Array.isArray(rows)?rows:[];
       const ids=[...new Set(list.map((x:any)=>String(x.customer_id||"")).filter(Boolean))];
       const customers=ids.length?await get("customers?select=id,name&id=in.("+ids.map(encodeURIComponent).join(",")+")"):[];
