@@ -1289,9 +1289,9 @@ if ("serviceWorker" in navigator && location.protocol === "https:") {
   try{
    const d=await api("shipment_notification_queue");
    if(!d||d.ok!==true||!Array.isArray(d.shipments))throw Error(d?.error||"دریافت فهرست ناموفق بود");
-   rows=d.shipments;count.textContent=Number(rows.length).toLocaleString("fa-IR");
+   rows=d.shipments;count.textContent=Number(rows.length).toLocaleString("fa-IR");fab.classList.toggle("hidden",rows.length===0);
    list.innerHTML=rows.length?rows.map(x=>'<article class="notification-retry-row"><div class="head"><strong>'+escN(x.customer_name||"نامشخص")+'</strong><span class="pill">'+(x.greenhouse==="azna"?"ازنا":"خرم‌آباد")+'</span></div><div class="meta">تاریخ بار: '+escN(x.shipped_at_jalali||fmtN(x.shipped_at))+' · '+Number(x.quantity_bundles||0).toLocaleString("fa-IR")+' دسته</div><div class="shipment-notification-status '+(x.notification_status==="failed"?"failed":x.notification_status==="pending"?"pending":"unknown")+'">'+(x.notification_status==="failed"?"ارسال ناموفق":x.notification_status==="pending"?"در انتظار ارسال":"وضعیت نامشخص")+'</div>'+(x.notification_error?'<div class="meta">علت آخرین خطا: '+escN(x.notification_error)+'</div>':'')+'<div class="buttons"><button type="button" class="btn" data-retry-one="'+escN(x.id)+'">ارسال مجدد این بار</button></div></article>').join(""):'<div class="muted">همه بارهای ثبت‌شده اعلان تأییدشده دارند؛ موردی برای ارسال مجدد نیست. 🌹</div>';
-  }catch(e){list.innerHTML='<div class="status err">خطا در دریافت فهرست: '+escN(e.message||e)+'</div>';count.textContent="۰";}
+  }catch(e){list.innerHTML='<div class="status err">خطا در دریافت فهرست: '+escN(e.message||e)+'</div>';count.textContent="۰";fab.classList.add("hidden");}
  }
  async function retry(ids,button){
   if(!ids.length)return;sayNotification("در حال ارسال مجدد اعلان‌ها…");if(button)button.disabled=true;
@@ -1311,8 +1311,8 @@ if ("serviceWorker" in navigator && location.protocol === "https:") {
  $("retryAllShipmentNotifications")?.addEventListener("click",e=>retry(rows.map(x=>x.id),e.currentTarget));
  list.addEventListener("click",e=>{const b=e.target.closest("[data-retry-one]");if(!b)return;retry([b.dataset.retryOne],b);});
  $("shipList")?.addEventListener("click",e=>{const b=e.target.closest("[data-retry-shipment-notification]");if(!b)return;retry([b.dataset.retryShipmentNotification],b);});
- window.refreshShipmentNotificationFab=()=>{if(typeof isRoselorAdmin==="function"&&isRoselorAdmin()){fab.classList.remove("hidden");loadQueue().catch(()=>{});}else fab.classList.add("hidden");};
- if(typeof isRoselorAdmin==="function"&&isRoselorAdmin())fab.classList.remove("hidden");
+ window.refreshShipmentNotificationFab=()=>{if(typeof isRoselorAdmin==="function"&&isRoselorAdmin()){loadQueue().catch(()=>fab.classList.add("hidden"));}else fab.classList.add("hidden");};
+ if(typeof isRoselorAdmin==="function"&&isRoselorAdmin())loadQueue().catch(()=>fab.classList.add("hidden"));
 })();
 </script>
 </body></html>
