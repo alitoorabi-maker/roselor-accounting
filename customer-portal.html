@@ -361,6 +361,7 @@ if(view==="invoices"){
 }
 $("listContent").innerHTML=rows.length||view==="ledger"?group(names[view],view==="ledger"?rows.length+2:rows.length,items):'<div class="card muted">اطلاعاتی برای نمایش وجود ندارد.</div>';
 if(view==="payments"){
+ const paymentInput=$("paymentFromDate");if(paymentInput){const paymentCard=paymentInput.closest(".card");const paymentGroup=paymentInput.closest("details");if(paymentCard&&paymentGroup)paymentGroup.parentNode.insertBefore(paymentCard,paymentGroup);}
  const from=$("paymentFromDate"),to=$("paymentToDate"),summary=$("paymentRangeSummary"),count=$("paymentRangeCount");
  const updatePaymentRange=()=>{
   const a=from.value,b=to.value;
