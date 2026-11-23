@@ -242,7 +242,7 @@ Deno.serve(async (req: Request) => {
     if(!saved||String(saved.driver_user_id)!==String(claims.sub)||saved.greenhouse!==greenhouse||saved.driver_name!==driverName||Number(saved.bucket_count)!==count||saved.status!=="pending")return send({ok:false,error:"supervisor_bucket_request_verification_failed"},409);
     let notification:any={ok:false,error:"push_not_attempted"};
     try{
-      const pushResponse=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:publishable,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send",title:"درخواست سطل برگشتی جدید",body:driverName+" · "+(greenhouse==="azna"?"گلخانه ازنا":"گلخانه خرم‌آباد")+" · "+String(count)+" سطل برای تأیید مدیر ثبت شد.",url:"./index.html"})});
+      const pushResponse=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:key,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send",title:"درخواست سطل برگشتی جدید",body:driverName+" · "+(greenhouse==="azna"?"گلخانه ازنا":"گلخانه خرم‌آباد")+" · "+String(count)+" سطل برای تأیید مدیر ثبت شد.",url:"./index.html"})});
       notification=await pushResponse.json().catch(()=>({ok:false,error:"invalid_push_response"}));
       if(!pushResponse.ok)notification={ok:false,error:"push_http_"+pushResponse.status};
     }catch(e){notification={ok:false,error:String(e)};}
@@ -262,7 +262,7 @@ Deno.serve(async (req: Request) => {
         const customerRows=await get("customers?select=id,name&id=eq."+encodeURIComponent(String(shipment.customer_id))+"&limit=1");
         const customer=Array.isArray(customerRows)?customerRows[0]:null;
         try{
-          const pushResponse=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:publishable,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send_customer",customer_id:String(shipment.customer_id),title:"رز لر · بار جدید",body:"بار جدید برای حساب "+String(customer?.name||"شما")+" ثبت و تأیید شد. برای مشاهده جزئیات وارد پنل رز لر شوید.",url:"./customer-portal.html"})});
+          const pushResponse=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:key,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send_customer",customer_id:String(shipment.customer_id),title:"رز لر · بار جدید",body:"بار جدید برای حساب "+String(customer?.name||"شما")+" ثبت و تأیید شد. برای مشاهده جزئیات وارد پنل رز لر شوید.",url:"./customer-portal.html"})});
           const pushResult=await pushResponse.json().catch(()=>({ok:false,error:"invalid_push_response"}));
           sent=Number(pushResult.sent||0)+Number(pushResult.fcmSent||0);
           failed=Number(pushResult.failed||0)+Number(pushResult.fcmFailed||0);
@@ -470,7 +470,7 @@ Deno.serve(async (req: Request) => {
       if(!metadataAdmin&&!writeGreenhouses.has(greenhouse)) return send({ok:false,error:"greenhouse_access_denied"},403);
       if(hasSupervisor||accessRows.some((x:any)=>x.role==="accountant")){const pending=await get("daily_harvest_submissions?select=id,status,harvest_date,greenhouse,quantity_bundles,notes&harvest_date=eq."+encodeURIComponent(harvestDate)+"&greenhouse=eq."+encodeURIComponent(greenhouse)+"&status=eq.pending_approval&limit=1");if(Array.isArray(pending)&&pending.length){const existing=pending[0];if(Number(existing.quantity_bundles)===bundles)return send({ok:true,verified:true,pending_approval:true,submission:existing,already_pending:true});return send({ok:false,error:"harvest_pending_conflict",pending_submission:existing},409);}const id=crypto.randomUUID();await post("daily_harvest_submissions",{id,harvest_date:harvestDate,greenhouse,quantity_bundles:bundles,notes:notes||null,created_by:String(claims.sub),status:"pending_approval"});const verify=await get("daily_harvest_submissions?select=id,status,harvest_date,greenhouse,quantity_bundles&id=eq."+encodeURIComponent(id)+"&limit=1");const saved=Array.isArray(verify)?verify[0]:null;if(!saved||saved.status!=="pending_approval"||Number(saved.quantity_bundles)!==bundles)return send({ok:false,error:"harvest_submission_verification_failed"},409);
       let notification:any={ok:false,error:"push_not_attempted"};
-      if(hasSupervisor){try{const pushResponse=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:publishable,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send",title:"آمار برداشت جدید برای تأیید",body:(greenhouse==="azna"?"گلخانه ازنا":"گلخانه خرم‌آباد")+" · "+String(bundles)+" دسته · تاریخ "+harvestDate+" برای تأیید مدیر ثبت شد.",url:"./index.html"})});notification=await pushResponse.json().catch(()=>({ok:false,error:"invalid_push_response"}));if(!pushResponse.ok)notification={ok:false,error:"push_http_"+pushResponse.status};}catch(e){notification={ok:false,error:String(e)};}}
+      if(hasSupervisor){try{const pushResponse=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:key,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send",title:"آمار برداشت جدید برای تأیید",body:(greenhouse==="azna"?"گلخانه ازنا":"گلخانه خرم‌آباد")+" · "+String(bundles)+" دسته · تاریخ "+harvestDate+" برای تأیید مدیر ثبت شد.",url:"./index.html"})});notification=await pushResponse.json().catch(()=>({ok:false,error:"invalid_push_response"}));if(!pushResponse.ok)notification={ok:false,error:"push_http_"+pushResponse.status};}catch(e){notification={ok:false,error:String(e)};}}
       return send({ok:true,verified:true,pending_approval:true,submission:saved,notification});}
       const existing=await get("daily_harvest?select=id&harvest_date=eq."+encodeURIComponent(harvestDate)+"&greenhouse=eq."+encodeURIComponent(greenhouse)+"&limit=1");
       let id="";
@@ -571,7 +571,7 @@ Deno.serve(async (req: Request) => {
         const message="سلام "+(names.get(customerId)||"مشتری")+"، جزئیات بار شما: "+details.join("؛ ")+". برای مشاهده جزئیات وارد پنل رز لر شوید.";
         let sent=0,failed=0,error:string|null=null;
         try{
-          const response=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:publishable,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send_customer",customer_id:customerId,title,body:message,url:"./customer-portal.html"})});
+          const response=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:key,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send_customer",customer_id:customerId,title,body:message,url:"./customer-portal.html"})});
           const result=await response.json().catch(()=>({ok:false,error:"invalid_push_response"}));
           sent=Number(result.sent||0)+Number(result.fcmSent||0);
           failed=Number(result.failed||0)+Number(result.fcmFailed||0);
@@ -611,7 +611,7 @@ Deno.serve(async (req: Request) => {
         const title="رز لر · یادآوری بار ارسالی";
         const message="سلام "+(names.get(customerId)||"")+"، بار ثبت‌شده امروز: "+details.join("؛ ")+" . برای مشاهده جزئیات وارد پنل رز لر شوید.";
         try{
-          const response=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:publishable,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send_customer",customer_id:customerId,title,body:message,url:"./customer-portal.html"})});
+          const response=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:key,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send_customer",customer_id:customerId,title,body:message,url:"./customer-portal.html"})});
           const result=await response.json().catch(()=>({ok:false,error:"invalid_push_response"}));
           const delivered=Number(result.sent||0)+Number(result.fcmSent||0);
           const failed=Number(result.failed||0)+Number(result.fcmFailed||0);
@@ -669,13 +669,13 @@ Deno.serve(async (req: Request) => {
       let notification:any={ok:false,error:"push_not_attempted"};
       if(hasSupervisor){
         try{
-          const pushResponse=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:publishable,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send",title:"بار جدید برای تأیید مدیر",body:customer.name+" · "+(greenhouse==="azna"?"گلخانه ازنا":"گلخانه خرم‌آباد")+" · "+String(bundles)+" دسته · تاریخ "+check+" برای تأیید ثبت شد.",url:"./index.html"})});
+          const pushResponse=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:key,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send",title:"بار جدید برای تأیید مدیر",body:customer.name+" · "+(greenhouse==="azna"?"گلخانه ازنا":"گلخانه خرم‌آباد")+" · "+String(bundles)+" دسته · تاریخ "+check+" برای تأیید ثبت شد.",url:"./index.html"})});
           notification=await pushResponse.json().catch(()=>({ok:false,error:"invalid_push_response"}));
           if(!pushResponse.ok)notification={ok:false,error:"push_http_"+pushResponse.status};
         }catch(e){notification={ok:false,error:String(e)};}
       } else {
         try{
-          const pushResponse=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:publishable,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send_customer",customer_id:customerId,title:"رز لر · بار جدید",body:"بار جدید برای حساب شما ثبت شد. برای مشاهده جزئیات و بررسی فاکتور وارد پنل رز لر شوید.",url:"./customer-portal.html"})});
+          const pushResponse=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:key,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send_customer",customer_id:customerId,title:"رز لر · بار جدید",body:"بار جدید برای حساب شما ثبت شد. برای مشاهده جزئیات و بررسی فاکتور وارد پنل رز لر شوید.",url:"./customer-portal.html"})});
           const pushResult=await pushResponse.json().catch(()=>({ok:false,error:"invalid_push_response"}));
           if(!pushResponse.ok) notification={ok:false,error:"push_http_"+pushResponse.status};
           else {
