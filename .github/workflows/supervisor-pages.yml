@@ -1,4 +1,5 @@
 name: Publish Roselor Supervisor Portal
+run-name: Publish manager and supervisor portals
 on:
   push:
     branches: [main]
