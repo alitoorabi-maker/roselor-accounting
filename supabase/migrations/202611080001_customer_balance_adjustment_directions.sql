@@ -48,10 +48,7 @@ begin
         join public.shipments s on s.id=i.shipment_id
         where s.customer_id=p_customer_id and s.greenhouse=v_greenhouse
           and coalesce(lower(i.status),'') not in ('cancelled','canceled','باطل','لغو')
-          and not (
-            coalesce(lower(i.status),'')='pending'
-            and coalesce(i.notes,'') like 'supervisor_submission:%'
-          )
+          and coalesce(lower(i.status),'') in ('received','verified')
           and i.invoice_date>=coalesce((
             select ob.as_of_date from public.customer_opening_balances ob
             where ob.customer_id=p_customer_id and ob.greenhouse=v_greenhouse
