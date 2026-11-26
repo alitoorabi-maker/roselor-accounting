@@ -713,7 +713,7 @@ Deno.serve(async (req: Request) => {
         }catch(e){notification={ok:false,error:String(e)};}
       } else {
         try{
-          const pushResponse=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:key,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send_customer",customer_id:customerId,title:"رز لر · بار جدید",body:"بار جدید برای حساب شما ثبت شد. برای مشاهده جزئیات و بررسی فاکتور وارد پنل رز لر شوید.",url:"./customer-portal.html"})});
+          const pushResponse=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:key,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send_customer",customer_id:customerId,title:"رز لر · بار جدید",body:"بار جدید برای حساب شما ثبت شد.\nتعداد بار: "+String(bundles)+" دسته\nراننده: "+(flowerTruck||"ثبت نشده")+"\nتاریخ: "+check+"\nبرای مشاهده جزئیات و بررسی فاکتور وارد پنل رز لر شوید.",url:"./customer-portal.html"})});
           const pushResult=await pushResponse.json().catch(()=>({ok:false,error:"invalid_push_response"}));
           if(!pushResponse.ok) notification={ok:false,error:"push_http_"+pushResponse.status};
           else {
