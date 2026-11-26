@@ -645,9 +645,9 @@ Deno.serve(async (req: Request) => {
       for(const sh of shipments){const id=String(sh.customer_id||"");if(!id)continue;const list=groups.get(id)||[];list.push(sh);groups.set(id,list);}
       const results:any[]=[];
       for(const [customerId,list] of groups){
-        const details=list.map((x:any)=>String(x.quantity_bundles)+" دسته از "+(x.greenhouse==="azna"?"گلخانه ازنا":"گلخانه خرم‌آباد")+" برای تحویل "+(jalaliDateFromTimestamp(String(x.shipped_at||""))||"تاریخ نامشخص"));
+        const details=list.map((x:any)=>"تعداد بار: "+String(x.quantity_bundles)+" دسته\nراننده: "+(String(x.flower_truck||"").trim()||"ثبت نشده")+"\nتاریخ: "+(jalaliDateFromTimestamp(String(x.shipped_at||""))||"تاریخ نامشخص")+"\nگلخانه: "+(x.greenhouse==="azna"?"ازنا":"خرم‌آباد"));
         const title="رز لر · یادآوری بار ارسالی";
-        const message="سلام "+(names.get(customerId)||"")+"، بار ثبت‌شده امروز: "+details.join("؛ ")+" . برای مشاهده جزئیات وارد پنل رز لر شوید.";
+        const message="سلام "+(names.get(customerId)||"")+"، بار ثبت‌شده امروز:\n\n"+details.join("\n\n")+"\n\nبرای مشاهده جزئیات وارد پنل رز لر شوید.";
         try{
           const response=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:key,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send_customer",customer_id:customerId,title,body:message,url:"./customer-portal.html"})});
           const result=await response.json().catch(()=>({ok:false,error:"invalid_push_response"}));
