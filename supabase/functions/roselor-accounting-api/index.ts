@@ -4,7 +4,7 @@ function corsHeaders(_req: Request) {
   // This endpoint authenticates every request with an explicitly supplied Bearer token
   // and does not use cookie credentials. A wildcard avoids WebView / installed-app
   // origin mismatches while keeping authorization enforced by the handler below.
-  return {"content-type":"application/json; charset=utf-8","access-control-allow-origin":"*","access-control-allow-headers":"authorization, content-type, apikey","access-control-allow-methods":"POST, OPTIONS","cache-control":"no-store"};
+  return {"content-type":"application/json; charset=utf-8","access-control-allow-origin":"*","access-control-allow-headers":"authorization, content-type, apikey, x-client-info, accept, x-supabase-api-version, x-requested-with","access-control-allow-methods":"POST, OPTIONS","cache-control":"no-store"};
 }
 
 function jalaliDateFromTimestamp(value: string) {
@@ -40,28 +40,28 @@ function jwtPayload(token: string) {
 }
 Deno.serve(async (req: Request) => {
   if(req.method==="OPTIONS") return new Response(null,{status:204,headers:corsHeaders(req)});
-  if(req.method!=="POST") return send({ok:false,error:"method_not_allowed"},405);
+  if(req.method!=="POST") return reply(req,{ok:false,error:"method_not_allowed"},405);
   const auth=req.headers.get("authorization")||"";
-  if(!auth.startsWith("Bearer ")) return send({ok:false,error:"authentication_required"},401);
+  if(!auth.startsWith("Bearer ")) return reply(req,{ok:false,error:"authentication_required"},401);
   const bearer=auth.slice(7);
   // Verify the access token with Supabase Auth itself. This also supports
   // current asymmetric ES256 signing keys without relying on the Edge gateway JWT verifier.
   const publishable=Deno.env.get("SUPABASE_ANON_KEY")||Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
-  if(!publishable) return send({ok:false,error:"auth_verification_not_configured"},503);
+  if(!publishable) return reply(req,{ok:false,error:"auth_verification_not_configured"},503);
   const userResponse=await fetch(BASE+"/auth/v1/user",{headers:{apikey:publishable,authorization:"Bearer "+bearer}});
   const verifiedUser=userResponse.ok?await userResponse.json().catch(()=>null):null;
-  if(!verifiedUser?.id) return send({ok:false,error:"invalid_or_expired_session"},401);
+  if(!verifiedUser?.id) return reply(req,{ok:false,error:"invalid_or_expired_session"},401);
   const claims=jwtPayload(bearer);
   if(!claims?.sub || claims.role!=="authenticated" || claims.sub!==verifiedUser.id)
-    return send({ok:false,error:"authenticated_user_required"},403);
+    return reply(req,{ok:false,error:"authenticated_user_required"},403);
   const meta=claims.app_metadata||{};
   const metadataAdmin=meta.accounting_admin===true || meta.role==="admin";
-  let body:any; try { body=await req.json(); } catch { return send({ok:false,error:"invalid_json"},400); }
+  let body:any; try { body=await req.json(); } catch { return reply(req,{ok:false,error:"invalid_json"},400); }
   const action=body.action;
-  const allowed=["my_access","overview","customer_balances","customer_ledger","customer_ledger_event_detail","create_customer_discount_adjustment","create_customer_balance_adjustment","delete_customer_account_adjustment","transfer_customer_balance","transaction_ledger","unmatched_transactions","shipments_without_invoice","monthly_sales_monitor","bank_balance_reconciliation","create_invoice_for_shipment","pending_supervisor_invoices","approve_supervisor_invoice","create_shipment","resend_today_shipment_notifications","shipment_notification_queue","resend_shipment_notifications","customer_contract_options","customer_contract_reports","delete_shipment","shipment_form_options","reconcile_deposit","reconcile_withdrawal","create_bank_reconciliation_adjustment","vendor_options","create_vendor","update_vendor","daily_harvest_summary","cold_storage_summary","delete_daily_harvest","monthly_shipment_summary","returned_buckets","create_returned_bucket","driver_bucket_ledger","delete_driver_bucket_ledger","create_driver_bucket_return","pending_driver_bucket_returns","review_driver_bucket_return","driver_freight_requests","review_driver_freight_request","pending_supervisor_shipments","review_supervisor_shipment","pending_supervisor_harvests","review_supervisor_harvest","driver_delivery_confirmations","save_daily_harvest","supervisor_bucket_form_options","supervisor_bucket_requests","submit_supervisor_bucket_return","customer_sms_customers","customer_sms_history","customer_sms_template"];
-  if(!allowed.includes(action)) return send({ok:false,error:"unsupported_action",allowed},400);
+  const allowed=["my_access","overview","customer_balances","customer_ledger","customer_ledger_event_detail","create_customer_discount_adjustment","create_customer_balance_adjustment","delete_customer_account_adjustment","transfer_customer_balance","transaction_ledger","unmatched_transactions","shipments_without_invoice","monthly_sales_monitor","bank_balance_reconciliation","create_invoice_for_shipment","pending_supervisor_invoices","approve_supervisor_invoice","create_shipment","resend_today_shipment_notifications","shipment_notification_queue","resend_shipment_notifications","customer_contract_options","customer_contract_reports","customer_contract_form_options","create_customer_contract","delete_shipment","shipment_form_options","reconcile_deposit","reconcile_withdrawal","create_bank_reconciliation_adjustment","vendor_options","create_vendor","update_vendor","daily_harvest_summary","cold_storage_summary","delete_daily_harvest","monthly_shipment_summary","returned_buckets","create_returned_bucket","driver_bucket_ledger","delete_driver_bucket_ledger","create_driver_bucket_return","pending_driver_bucket_returns","review_driver_bucket_return","driver_freight_requests","review_driver_freight_request","pending_supervisor_shipments","review_supervisor_shipment","pending_supervisor_harvests","review_supervisor_harvest","driver_delivery_confirmations","save_daily_harvest","supervisor_bucket_form_options","supervisor_bucket_requests","submit_supervisor_bucket_return","customer_sms_customers","customer_sms_history","customer_sms_template"];
+  if(!allowed.includes(action)) return reply(req,{ok:false,error:"unsupported_action",allowed},400);
   const key=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if(!key) return send({ok:false,error:"server_configuration_missing"},500);
+  if(!key) return reply(req,{ok:false,error:"server_configuration_missing"},500);
   async function get(path:string) {
     const r=await fetch(BASE+"/rest/v1/"+path,{headers:{apikey:key,authorization:"Bearer "+key}});
     const j=await r.json().catch(()=>null);
@@ -104,6 +104,15 @@ Deno.serve(async (req: Request) => {
     if(!r.ok) throw new Error("database_write_failed:"+r.status+":"+JSON.stringify(j));
     return j;
   }
+
+  async function notifyCustomer(customerId:string,title:string,message:string) {
+    try {
+      const response=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:key,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send_customer",customer_id:customerId,title,body:message,url:"./customer-portal.html"})});
+      const result=await response.json().catch(()=>({ok:false,error:"invalid_push_response"}));
+      const sent=Number(result.sent||0)+Number(result.fcmSent||0), failed=Number(result.failed||0)+Number(result.fcmFailed||0);
+      return {attempted:sent+failed,sent,failed,ok:response.ok&&sent>0,error:!response.ok?String(result.error||"push_http_"+response.status):(sent===0?String(result.error||"no_delivery_confirmed"):null)};
+    } catch(e) { return {attempted:0,sent:0,failed:0,ok:false,error:String(e).slice(0,240)}; }
+  }
   // Contract-entitlement cleanup is unrelated to supervisor bucket-return requests.
   // Do not block time-sensitive supervisor actions on a global maintenance RPC.
   if(!["supervisor_bucket_form_options","supervisor_bucket_requests","submit_supervisor_bucket_return"].includes(action))
@@ -113,7 +122,7 @@ Deno.serve(async (req: Request) => {
     const rows=await get("accounting_user_greenhouse_access?select=role,greenhouse,section_permissions&user_id=eq."+encodeURIComponent(String(claims.sub))+"&order=greenhouse.asc").catch(()=>[]);
     accessRows=Array.isArray(rows)?rows:[];
     if(!accessRows.length || accessRows.some((x:any)=>!["viewer","accountant","supervisor"].includes(x.role)||!["azna","khorramabad"].includes(x.greenhouse)))
-      return send({ok:false,error:"accounting_access_not_assigned"},403);
+      return reply(req,{ok:false,error:"accounting_access_not_assigned"},403);
   }
   const allowedGreenhouses=new Set<string>(metadataAdmin?["azna","khorramabad"]:accessRows.map((x:any)=>x.greenhouse));
   const writeGreenhouses=new Set<string>(metadataAdmin?["azna","khorramabad"]:accessRows.filter((x:any)=>x.role==="accountant"||x.role==="supervisor").map((x:any)=>x.greenhouse));
@@ -122,28 +131,28 @@ Deno.serve(async (req: Request) => {
   const hasSupervisor=!metadataAdmin&&accessRows.some((x:any)=>x.role==="supervisor");
   const sectionPermissions:any=metadataAdmin||accessRows.some((x:any)=>x.role==="accountant")?Object.fromEntries(Object.keys(sectionDefaults).map(k=>[k,{view:true,write:true}])):hasSupervisor?Object.fromEntries(Object.keys(sectionDefaults).map(k=>[k,{view:k==="cash"||k==="invoices"||k==="ship"||k==="harvest",write:k==="cash"||k==="invoices"||k==="ship"||k==="harvest"}])):Object.fromEntries(Object.keys(sectionDefaults).map(k=>{const entries=accessRows.map((x:any)=>({role:x.role,permission:x.section_permissions?.[k]||sectionDefaults[k]}));return [k,{view:entries.some((x:any)=>x.permission.view===true),write:false}]}));
   if(action==="customer_sms_customers"){
-    if(!metadataAdmin&&!accessRows.some((x:any)=>x.role==="accountant"))return send({ok:false,error:"sms_customers_access_denied"},403);
+    if(!metadataAdmin&&!accessRows.some((x:any)=>x.role==="accountant"))return reply(req,{ok:false,error:"sms_customers_access_denied"},403);
     const rows=await get("customers?select=id,name,phone&is_active=eq.true&phone=not.is.null&order=name.asc&limit=2000");
     const customers=(Array.isArray(rows)?rows:[]).filter((x:any)=>String(x.name||"").trim().length>0&&/^09\d{9}$/.test(String(x.phone||"").replace(/[\s-]/g,"")));
     return reply(req,{ok:true,verified:true,customers:customers.map((x:any)=>({...x,phone:String(x.phone).replace(/[\s-]/g,"")}))});
   }
   if(action==="customer_sms_template"){
-    if(!metadataAdmin&&!accessRows.some((x:any)=>x.role==="accountant"))return send({ok:false,error:"sms_template_access_denied"},403);
+    if(!metadataAdmin&&!accessRows.some((x:any)=>x.role==="accountant"))return reply(req,{ok:false,error:"sms_template_access_denied"},403);
     if(body.queue_id){
       const queueId=String(body.queue_id).trim();
-      if(!queueId||queueId.length>160)return send({ok:false,error:"invalid_sms_queue_id"},400);
+      if(!queueId||queueId.length>160)return reply(req,{ok:false,error:"invalid_sms_queue_id"},400);
       const rows=await get("sms_send_queue?select=id,mobile_no,text,status,provider_code,provider_message,error_message,created_at,sent_at&id=eq."+encodeURIComponent(queueId)+"&limit=1");
       const queue=Array.isArray(rows)?rows[0]:null;
-      if(!queue)return send({ok:false,error:"sms_queue_item_not_found"},404);
+      if(!queue)return reply(req,{ok:false,error:"sms_queue_item_not_found"},404);
       return reply(req,{ok:true,verified:true,queue});
     }
     const customerId=typeof body.customer_id==="string"?body.customer_id.trim():"";
     const template=typeof body.template==="string"?body.template.trim():"";
-    if(!customerId||!["shipments","balance","followup"].includes(template))return send({ok:false,error:"invalid_sms_template_input"},400);
+    if(!customerId||!["shipments","balance","followup"].includes(template))return reply(req,{ok:false,error:"invalid_sms_template_input"},400);
     const customers=await get("customers?select=id,name,phone,is_active&id=eq."+encodeURIComponent(customerId)+"&is_active=eq.true&limit=1");
     const customer=Array.isArray(customers)?customers[0]:null;
     const phone=String(customer?.phone||"").replace(/[\s-]/g,"");
-    if(!customer||!/^09\d{9}$/.test(phone))return send({ok:false,error:"sms_customer_not_found_or_invalid_phone"},404);
+    if(!customer||!/^09\d{9}$/.test(phone))return reply(req,{ok:false,error:"sms_customer_not_found_or_invalid_phone"},404);
     const [shipments,invoices,balances]=await Promise.all([
       get("shipments?select=id,greenhouse,quantity_bundles,shipped_at,status&customer_id=eq."+encodeURIComponent(customerId)+"&status=not.in.(cancelled,rejected)&order=shipped_at.asc&limit=5000"),
       get("invoices?select=shipment_id"),
@@ -188,18 +197,18 @@ Deno.serve(async (req: Request) => {
     if(template==="balance")message=greeting+"\n\n"+balanceLine+signature;
     if(template==="followup")message=shipmentMessage.replace(signature,"")+"\n\n"+balanceLine+signature;
     if(body.send===true){
-      if(!metadataAdmin)return send({ok:false,error:"sms_admin_required"},403);
+      if(!metadataAdmin)return reply(req,{ok:false,error:"sms_admin_required"},403);
       const editedText=typeof body.text==="string"?body.text.trim():"";
-      if(!editedText||editedText.length>2000)return send({ok:false,error:"invalid_sms_text"},400);
+      if(!editedText||editedText.length>2000)return reply(req,{ok:false,error:"invalid_sms_text"},400);
       const sent=await fetch(BASE+"/functions/v1/roselor-sms-api",{method:"POST",headers:{apikey:publishable,authorization:"Bearer "+bearer,"content-type":"application/json"},body:JSON.stringify({mobile:phone,text:editedText})});
       const result=await sent.json().catch(()=>({}));
-      if(!sent.ok||result.ok!==true)return send({ok:false,error:result.code||"sms_provider_send_failed",message:result.message||"ارسال پیامک ناموفق بود."},sent.status>=400?sent.status:502);
+      if(!sent.ok||result.ok!==true)return reply(req,{ok:false,error:result.code||"sms_provider_send_failed",message:result.message||"ارسال پیامک ناموفق بود."},sent.status>=400?sent.status:502);
       return reply(req,{ok:true,verified:true,sent:true,provider_code:String(result.code||"0"),message:result.message||"پیامک با موفقیت ارسال شد.",customer:{id:customer.id,name:customer.name,phone}});
     }
     return reply(req,{ok:true,verified:true,customer:{id:customer.id,name:customer.name,phone},message,shipment_count:pending.length,total_balance_rial:total});
   }
   if(action==="customer_sms_history"){
-    if(!metadataAdmin&&!accessRows.some((x:any)=>x.role==="accountant"))return send({ok:false,error:"sms_history_access_denied"},403);
+    if(!metadataAdmin&&!accessRows.some((x:any)=>x.role==="accountant"))return reply(req,{ok:false,error:"sms_history_access_denied"},403);
     const [queued,outbox]=await Promise.all([
       get("sms_send_queue?select=id,mobile_no,text,status,provider_code,provider_message,error_message,created_at,sent_at&order=created_at.desc&limit=100").catch(()=>[]),
       get("sms_outbox?select=id,mobile_no,text,status,provider_code,provider_message,created_at,sent_at&order=created_at.desc&limit=100").catch(()=>[])
@@ -215,44 +224,47 @@ Deno.serve(async (req: Request) => {
     return reply(req,{ok:true,verified:true,history:rows.map((x:any)=>({...x,customer_name:byPhone.get(String(x.mobile_no||""))||"مشتری ثبت‌نشده"}))});
   }
   if(action==="my_access") return reply(req,{ok:true,is_admin:metadataAdmin,access:metadataAdmin?[{greenhouse:"azna",role:"admin"},{greenhouse:"khorramabad",role:"admin"}]:accessRows,section_permissions:sectionPermissions});
-  if(hasSupervisor&&!["shipments_without_invoice","shipment_form_options","create_shipment","create_invoice_for_shipment","save_daily_harvest","daily_harvest_summary","cold_storage_summary","supervisor_bucket_form_options","supervisor_bucket_requests","submit_supervisor_bucket_return"].includes(action)) return send({ok:false,error:"supervisor_action_not_allowed"},403);
+  if(hasSupervisor&&!["shipments_without_invoice","shipment_form_options","create_shipment","create_invoice_for_shipment","save_daily_harvest","daily_harvest_summary","cold_storage_summary","supervisor_bucket_form_options","supervisor_bucket_requests","submit_supervisor_bucket_return"].includes(action)) return reply(req,{ok:false,error:"supervisor_action_not_allowed"},403);
   if(action==="supervisor_bucket_form_options"){
-    if(!hasSupervisor)return send({ok:false,error:"supervisor_only"},403);
+    if(!hasSupervisor)return reply(req,{ok:false,error:"supervisor_only"},403);
     const greenhouse=String(body.greenhouse||"");
-    if(!["azna","khorramabad"].includes(greenhouse)||!accessRows.some((x:any)=>x.role==="supervisor"&&x.greenhouse===greenhouse))return send({ok:false,error:"greenhouse_access_denied"},403);
+    if(!["azna","khorramabad"].includes(greenhouse)||!accessRows.some((x:any)=>x.role==="supervisor"&&x.greenhouse===greenhouse))return reply(req,{ok:false,error:"greenhouse_access_denied"},403);
     const rows=await get("shipments?select=flower_truck&greenhouse=eq."+encodeURIComponent(greenhouse)+"&order=shipped_at.desc&limit=10000");
     const drivers=[...new Set((Array.isArray(rows)?rows:[]).map((x:any)=>String(x.flower_truck||"").trim()).filter((x:string)=>Boolean(x)&&!["بدون راننده","خودش","نامشخص"].includes(x)))];
-    return send({ok:true,drivers});
+    return reply(req,{ok:true,drivers});
   }
   if(action==="supervisor_bucket_requests"){
-    if(!hasSupervisor)return send({ok:false,error:"supervisor_only"},403);
+    if(!hasSupervisor)return reply(req,{ok:false,error:"supervisor_only"},403);
     const rows=await get("driver_bucket_return_requests?select=id,greenhouse,driver_name,bucket_count,status,driver_note,manager_note,created_at,reviewed_at&driver_user_id=eq."+encodeURIComponent(String(claims.sub))+"&order=created_at.desc&limit=200");
-    return send({ok:true,requests:Array.isArray(rows)?rows:[]});
+    return reply(req,{ok:true,requests:Array.isArray(rows)?rows:[]});
   }
   if(action==="submit_supervisor_bucket_return"){
-    if(!hasSupervisor)return send({ok:false,error:"supervisor_only"},403);
+    if(!hasSupervisor)return reply(req,{ok:false,error:"supervisor_only"},403);
     const greenhouse=String(body.greenhouse||""),driverName=String(body.driver_name||"").trim(),count=Number(body.bucket_count),note=String(body.driver_note||"").trim().slice(0,500);
-    if(!["azna","khorramabad"].includes(greenhouse)||!accessRows.some((x:any)=>x.role==="supervisor"&&x.greenhouse===greenhouse)||driverName.length<1||driverName.length>120||!Number.isSafeInteger(count)||count<1||count>10000)return send({ok:false,error:"invalid_supervisor_bucket_return"},400);
+    if(!["azna","khorramabad"].includes(greenhouse)||!accessRows.some((x:any)=>x.role==="supervisor"&&x.greenhouse===greenhouse)||driverName.length<1||driverName.length>120||!Number.isSafeInteger(count)||count<1||count>10000)return reply(req,{ok:false,error:"invalid_supervisor_bucket_return"},400);
     const known=await get("shipments?select=flower_truck&greenhouse=eq."+encodeURIComponent(greenhouse)+"&flower_truck=eq."+encodeURIComponent(driverName)+"&limit=1");
-    if(!Array.isArray(known)||!known.length)return send({ok:false,error:"driver_not_found_for_greenhouse"},404);
+    if(!Array.isArray(known)||!known.length)return reply(req,{ok:false,error:"driver_not_found_for_greenhouse"},404);
     const id=crypto.randomUUID();
     await post("driver_bucket_return_requests",{id,driver_user_id:String(claims.sub),greenhouse,driver_name:driverName,bucket_count:count,status:"pending",driver_note:note||null});
     const verify=await get("driver_bucket_return_requests?select=id,driver_user_id,greenhouse,driver_name,bucket_count,status,driver_note,created_at&id=eq."+encodeURIComponent(id)+"&limit=1");
     const saved=Array.isArray(verify)?verify[0]:null;
-    if(!saved||String(saved.driver_user_id)!==String(claims.sub)||saved.greenhouse!==greenhouse||saved.driver_name!==driverName||Number(saved.bucket_count)!==count||saved.status!=="pending")return send({ok:false,error:"supervisor_bucket_request_verification_failed"},409);
+    if(!saved||String(saved.driver_user_id)!==String(claims.sub)||saved.greenhouse!==greenhouse||saved.driver_name!==driverName||Number(saved.bucket_count)!==count||saved.status!=="pending")return reply(req,{ok:false,error:"supervisor_bucket_request_verification_failed"},409);
     let notification:any={ok:false,error:"push_not_attempted"};
     try{
       const pushResponse=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:key,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send",title:"درخواست سطل برگشتی جدید",body:driverName+" · "+(greenhouse==="azna"?"گلخانه ازنا":"گلخانه خرم‌آباد")+" · "+String(count)+" سطل برای تأیید مدیر ثبت شد.",url:"./index.html"})});
       notification=await pushResponse.json().catch(()=>({ok:false,error:"invalid_push_response"}));
       if(!pushResponse.ok)notification={ok:false,error:"push_http_"+pushResponse.status};
     }catch(e){notification={ok:false,error:String(e)};}
-    return send({ok:true,verified:true,request:saved,notification});
+    return reply(req,{ok:true,verified:true,request:saved,notification});
   }
-  if(action==="pending_supervisor_invoices"){if(!metadataAdmin)return send({ok:false,error:"admin_only"},403);const rows=await get("invoices?select=id,shipment_id,invoice_date,amount_rial,commission_rial,net_sales_rial,status,notes&status=eq.pending&notes=like.*supervisor_submission:*&order=invoice_date.asc&limit=200");const shipmentIds=[...new Set((Array.isArray(rows)?rows:[]).map((x:any)=>String(x.shipment_id||"")).filter(Boolean))];const shipments=shipmentIds.length?await get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at&id=in.("+shipmentIds.map(encodeURIComponent).join(",")+")"):[];const customerIds=[...new Set((Array.isArray(shipments)?shipments:[]).map((x:any)=>String(x.customer_id||"")).filter(Boolean))];const customers=customerIds.length?await get("customers?select=id,name&id=in.("+customerIds.map(encodeURIComponent).join(",")+")"):[];const customerNames=new Map((Array.isArray(customers)?customers:[]).map((x:any)=>[String(x.id),x.name]));const shipmentMap=new Map((Array.isArray(shipments)?shipments:[]).map((x:any)=>[String(x.id),x]));return send({ok:true,verified:true,invoices:(Array.isArray(rows)?rows:[]).map((x:any)=>{const s=shipmentMap.get(String(x.shipment_id||""));return {...x,customer_name:customerNames.get(String(s?.customer_id||""))||"نامشخص",greenhouse:s?.greenhouse||null,quantity_bundles:s?.quantity_bundles||null}})});}
-  if(action==="approve_supervisor_invoice"){if(!metadataAdmin)return send({ok:false,error:"admin_only"},403);const invoiceId=typeof body.invoice_id==="string"?body.invoice_id.trim():"";if(!invoiceId)return send({ok:false,error:"invoice_id_required"},400);const rows=await get("invoices?select=id,status,notes,amount_rial,shipment_id&id=eq."+encodeURIComponent(invoiceId)+"&limit=1");const current=Array.isArray(rows)?rows[0]:null;if(!current||current.status!=="pending"||!String(current.notes||"").startsWith("supervisor_submission:"))return send({ok:false,error:"supervisor_pending_invoice_not_found"},404);const nextNotes=String(current.notes||"")+"\nتأیید نهایی مدیر: "+new Date().toISOString();const upd=await fetch(BASE+"/rest/v1/invoices?id=eq."+encodeURIComponent(invoiceId),{method:"PATCH",headers:{"content-type":"application/json",apikey:key,authorization:"Bearer "+key,Prefer:"return=minimal"},body:JSON.stringify({status:"received",notes:nextNotes})});if(!upd.ok)return send({ok:false,error:"invoice_approval_write_failed"},409);const verified=await get("invoices?select=id,status,notes,amount_rial,shipment_id&id=eq."+encodeURIComponent(invoiceId)+"&limit=1");const saved=Array.isArray(verified)?verified[0]:null;if(!saved||saved.status!=="received"||saved.shipment_id!==current.shipment_id)return send({ok:false,error:"invoice_approval_verification_failed"},409);return send({ok:true,verified:true,invoice:saved});}
-  if(action==="driver_delivery_confirmations"){if(!metadataAdmin)return send({ok:false,error:"admin_only"},403);const rows=await get("shipments?select=id,customer_id,greenhouse,flower_truck,quantity_bundles,bucket_count,shipped_at,status&status=eq.delivered&order=shipped_at.desc&limit=100");const ids=[...new Set((Array.isArray(rows)?rows:[]).map((x:any)=>String(x.customer_id||"")).filter(Boolean))];const customers=ids.length?await get("customers?select=id,name&id=in.("+ids.map(encodeURIComponent).join(",")+")"):[];const names=new Map((Array.isArray(customers)?customers:[]).map((x:any)=>[String(x.id),x.name]));return send({ok:true,shipments:(Array.isArray(rows)?rows:[]).map((x:any)=>({...x,customer_name:names.get(String(x.customer_id||""))||"نامشخص"}))});}
-  if(action==="pending_supervisor_harvests"||action==="review_supervisor_harvest"){if(!metadataAdmin)return send({ok:false,error:"admin_only"},403);if(action==="pending_supervisor_harvests"){const rows=await get("daily_harvest_submissions?select=id,harvest_date,greenhouse,quantity_bundles,notes,created_by,created_at&status=eq.pending_approval&order=created_at.asc");return send({ok:true,requests:Array.isArray(rows)?rows:[]});}const id=String(body.submission_id||"").trim(),approve=body.approve===true;if(!id)return send({ok:false,error:"submission_id_required"},400);const rows=await get("daily_harvest_submissions?select=id,harvest_date,greenhouse,quantity_bundles,notes,created_by,status&id=eq."+encodeURIComponent(id)+"&limit=1");const reqRow=Array.isArray(rows)?rows[0]:null;if(!reqRow||reqRow.status!=="pending_approval")return send({ok:false,error:"pending_harvest_not_found"},409);if(approve){const current=await get("daily_harvest?select=id&harvest_date=eq."+encodeURIComponent(String(reqRow.harvest_date))+"&greenhouse=eq."+encodeURIComponent(reqRow.greenhouse)+"&limit=1");const payload={harvest_date:reqRow.harvest_date,greenhouse:reqRow.greenhouse,quantity_bundles:reqRow.quantity_bundles,notes:reqRow.notes||null,created_by:reqRow.created_by,updated_at:new Date().toISOString()};if(Array.isArray(current)&&current.length){const r=await fetch(BASE+"/rest/v1/daily_harvest?id=eq."+encodeURIComponent(current[0].id),{method:"PATCH",headers:{"content-type":"application/json",apikey:key,authorization:"Bearer "+key,Prefer:"return=minimal"},body:JSON.stringify(payload)});if(!r.ok)throw new Error("approved_harvest_write_failed:"+r.status);}else await post("daily_harvest",{id:crypto.randomUUID(),...payload});}const status=approve?"approved":"rejected";const r=await fetch(BASE+"/rest/v1/daily_harvest_submissions?id=eq."+encodeURIComponent(id)+"&status=eq.pending_approval",{method:"PATCH",headers:{"content-type":"application/json",apikey:key,authorization:"Bearer "+key,Prefer:"return=minimal"},body:JSON.stringify({status,reviewed_by:String(claims.sub),reviewed_at:new Date().toISOString()})});if(!r.ok)throw new Error("harvest_review_failed:"+r.status);const verify=await get("daily_harvest_submissions?select=id,status,harvest_date,greenhouse,quantity_bundles&id=eq."+encodeURIComponent(id)+"&limit=1");const saved=Array.isArray(verify)?verify[0]:null;if(!saved||saved.status!==status)return send({ok:false,error:"harvest_review_verification_failed"},409);if(approve){const official=await get("daily_harvest?select=harvest_date,greenhouse,quantity_bundles&harvest_date=eq."+encodeURIComponent(String(saved.harvest_date))+"&greenhouse=eq."+encodeURIComponent(saved.greenhouse)+"&limit=1");if(!Array.isArray(official)||!official[0]||Number(official[0].quantity_bundles)!==Number(saved.quantity_bundles))return send({ok:false,error:"official_harvest_verification_failed"},409);}return send({ok:true,verified:true,request:saved});}
-  if(action==="pending_supervisor_shipments"||action==="review_supervisor_shipment"){if(!metadataAdmin)return send({ok:false,error:"admin_only"},403);if(action==="pending_supervisor_shipments"){const rows=await get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status,notes,flower_truck,bucket_count,created_at&status=eq.pending_approval&order=created_at.asc");const ids=[...new Set((rows||[]).map((x:any)=>String(x.customer_id)))];const customers=ids.length?await get("customers?select=id,name&id=in.("+ids.map(encodeURIComponent).join(",")+")"):[];const names=new Map((customers||[]).map((x:any)=>[String(x.id),x.name]));return send({ok:true,requests:(rows||[]).map((x:any)=>({...x,customer_name:names.get(String(x.customer_id))||"نامشخص"}))});}const id=String(body.shipment_id||"").trim(),approve=body.approve===true;if(!id)return send({ok:false,error:"shipment_id_required"},400);const rows=await get("shipments?select=id,status&id=eq."+encodeURIComponent(id)+"&limit=1");const row=Array.isArray(rows)?rows[0]:null;if(!row||row.status!=="pending_approval")return send({ok:false,error:"pending_shipment_not_found"},409);const status=approve?"sent":"rejected";const upd=await fetch(BASE+"/rest/v1/shipments?id=eq."+encodeURIComponent(id)+"&status=eq.pending_approval",{method:"PATCH",headers:{"content-type":"application/json",apikey:key,authorization:"Bearer "+key,Prefer:"return=minimal"},body:JSON.stringify({status})});if(!upd.ok)throw new Error("shipment_review_failed:"+upd.status);const verify=await get("shipments?select=id,status&id=eq."+encodeURIComponent(id)+"&limit=1");const saved=Array.isArray(verify)?verify[0]:null;if(!saved||saved.status!==status)return send({ok:false,error:"shipment_review_verification_failed"},409);
+  if(action==="pending_supervisor_invoices"){if(!metadataAdmin)return reply(req,{ok:false,error:"admin_only"},403);const rows=await get("invoices?select=id,shipment_id,invoice_date,amount_rial,commission_rial,net_sales_rial,status,notes&status=eq.pending&notes=like.*supervisor_submission:*&order=invoice_date.asc&limit=200");const shipmentIds=[...new Set((Array.isArray(rows)?rows:[]).map((x:any)=>String(x.shipment_id||"")).filter(Boolean))];const shipments=shipmentIds.length?await get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at&id=in.("+shipmentIds.map(encodeURIComponent).join(",")+")"):[];const customerIds=[...new Set((Array.isArray(shipments)?shipments:[]).map((x:any)=>String(x.customer_id||"")).filter(Boolean))];const customers=customerIds.length?await get("customers?select=id,name&id=in.("+customerIds.map(encodeURIComponent).join(",")+")"):[];const customerNames=new Map((Array.isArray(customers)?customers:[]).map((x:any)=>[String(x.id),x.name]));const shipmentMap=new Map((Array.isArray(shipments)?shipments:[]).map((x:any)=>[String(x.id),x]));return reply(req,{ok:true,verified:true,invoices:(Array.isArray(rows)?rows:[]).map((x:any)=>{const s=shipmentMap.get(String(x.shipment_id||""));return {...x,customer_name:customerNames.get(String(s?.customer_id||""))||"نامشخص",greenhouse:s?.greenhouse||null,quantity_bundles:s?.quantity_bundles||null}})});}
+  if(action==="approve_supervisor_invoice"){if(!metadataAdmin)return reply(req,{ok:false,error:"admin_only"},403);const invoiceId=typeof body.invoice_id==="string"?body.invoice_id.trim():"";if(!invoiceId)return reply(req,{ok:false,error:"invoice_id_required"},400);const rows=await get("invoices?select=id,status,notes,amount_rial,shipment_id&id=eq."+encodeURIComponent(invoiceId)+"&limit=1");const current=Array.isArray(rows)?rows[0]:null;if(!current||current.status!=="pending"||!String(current.notes||"").startsWith("supervisor_submission:"))return reply(req,{ok:false,error:"supervisor_pending_invoice_not_found"},404);const nextNotes=String(current.notes||"")+"\nتأیید نهایی مدیر: "+new Date().toISOString();const upd=await fetch(BASE+"/rest/v1/invoices?id=eq."+encodeURIComponent(invoiceId),{method:"PATCH",headers:{"content-type":"application/json",apikey:key,authorization:"Bearer "+key,Prefer:"return=minimal"},body:JSON.stringify({status:"received",notes:nextNotes})});if(!upd.ok)return reply(req,{ok:false,error:"invoice_approval_write_failed"},409);const verified=await get("invoices?select=id,status,notes,amount_rial,shipment_id&id=eq."+encodeURIComponent(invoiceId)+"&limit=1");const saved=Array.isArray(verified)?verified[0]:null;if(!saved||saved.status!=="received"||saved.shipment_id!==current.shipment_id)return reply(req,{ok:false,error:"invoice_approval_verification_failed"},409);const shipmentRows=await get("shipments?select=customer_id&id=eq."+encodeURIComponent(String(saved.shipment_id))+"&limit=1");
+       const shipment=Array.isArray(shipmentRows)?shipmentRows[0]:null;
+       const notification=shipment?await notifyCustomer(String(shipment.customer_id),"رز لر · فاکتور تأیید شد","فاکتور بار شما پس از بررسی مدیر تأیید شد. برای مشاهده جزئیات وارد پنل رز لر شوید."):{ok:false,error:"shipment_not_found_for_notification"};
+       return reply(req,{ok:true,verified:true,invoice:saved,notification});}
+  if(action==="driver_delivery_confirmations"){if(!metadataAdmin)return reply(req,{ok:false,error:"admin_only"},403);const rows=await get("shipments?select=id,customer_id,greenhouse,flower_truck,quantity_bundles,bucket_count,shipped_at,status&status=eq.delivered&order=shipped_at.desc&limit=100");const ids=[...new Set((Array.isArray(rows)?rows:[]).map((x:any)=>String(x.customer_id||"")).filter(Boolean))];const customers=ids.length?await get("customers?select=id,name&id=in.("+ids.map(encodeURIComponent).join(",")+")"):[];const names=new Map((Array.isArray(customers)?customers:[]).map((x:any)=>[String(x.id),x.name]));return reply(req,{ok:true,shipments:(Array.isArray(rows)?rows:[]).map((x:any)=>({...x,customer_name:names.get(String(x.customer_id||""))||"نامشخص"}))});}
+  if(action==="pending_supervisor_harvests"||action==="review_supervisor_harvest"){if(!metadataAdmin)return reply(req,{ok:false,error:"admin_only"},403);if(action==="pending_supervisor_harvests"){const rows=await get("daily_harvest_submissions?select=id,harvest_date,greenhouse,quantity_bundles,notes,created_by,created_at&status=eq.pending_approval&order=created_at.asc");return reply(req,{ok:true,requests:Array.isArray(rows)?rows:[]});}const id=String(body.submission_id||"").trim(),approve=body.approve===true;if(!id)return reply(req,{ok:false,error:"submission_id_required"},400);const rows=await get("daily_harvest_submissions?select=id,harvest_date,greenhouse,quantity_bundles,notes,created_by,status&id=eq."+encodeURIComponent(id)+"&limit=1");const reqRow=Array.isArray(rows)?rows[0]:null;if(!reqRow||reqRow.status!=="pending_approval")return reply(req,{ok:false,error:"pending_harvest_not_found"},409);if(approve){const current=await get("daily_harvest?select=id&harvest_date=eq."+encodeURIComponent(String(reqRow.harvest_date))+"&greenhouse=eq."+encodeURIComponent(reqRow.greenhouse)+"&limit=1");const payload={harvest_date:reqRow.harvest_date,greenhouse:reqRow.greenhouse,quantity_bundles:reqRow.quantity_bundles,notes:reqRow.notes||null,created_by:reqRow.created_by,updated_at:new Date().toISOString()};if(Array.isArray(current)&&current.length){const r=await fetch(BASE+"/rest/v1/daily_harvest?id=eq."+encodeURIComponent(current[0].id),{method:"PATCH",headers:{"content-type":"application/json",apikey:key,authorization:"Bearer "+key,Prefer:"return=minimal"},body:JSON.stringify(payload)});if(!r.ok)throw new Error("approved_harvest_write_failed:"+r.status);}else await post("daily_harvest",{id:crypto.randomUUID(),...payload});}const status=approve?"approved":"rejected";const r=await fetch(BASE+"/rest/v1/daily_harvest_submissions?id=eq."+encodeURIComponent(id)+"&status=eq.pending_approval",{method:"PATCH",headers:{"content-type":"application/json",apikey:key,authorization:"Bearer "+key,Prefer:"return=minimal"},body:JSON.stringify({status,reviewed_by:String(claims.sub),reviewed_at:new Date().toISOString()})});if(!r.ok)throw new Error("harvest_review_failed:"+r.status);const verify=await get("daily_harvest_submissions?select=id,status,harvest_date,greenhouse,quantity_bundles&id=eq."+encodeURIComponent(id)+"&limit=1");const saved=Array.isArray(verify)?verify[0]:null;if(!saved||saved.status!==status)return reply(req,{ok:false,error:"harvest_review_verification_failed"},409);if(approve){const official=await get("daily_harvest?select=harvest_date,greenhouse,quantity_bundles&harvest_date=eq."+encodeURIComponent(String(saved.harvest_date))+"&greenhouse=eq."+encodeURIComponent(saved.greenhouse)+"&limit=1");if(!Array.isArray(official)||!official[0]||Number(official[0].quantity_bundles)!==Number(saved.quantity_bundles))return reply(req,{ok:false,error:"official_harvest_verification_failed"},409);}return reply(req,{ok:true,verified:true,request:saved});}
+  if(action==="pending_supervisor_shipments"||action==="review_supervisor_shipment"){if(!metadataAdmin)return reply(req,{ok:false,error:"admin_only"},403);if(action==="pending_supervisor_shipments"){const rows=await get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status,notes,flower_truck,bucket_count,created_at&status=eq.pending_approval&order=created_at.asc");const ids=[...new Set((rows||[]).map((x:any)=>String(x.customer_id)))];const customers=ids.length?await get("customers?select=id,name&id=in.("+ids.map(encodeURIComponent).join(",")+")"):[];const names=new Map((customers||[]).map((x:any)=>[String(x.id),x.name]));return reply(req,{ok:true,requests:(rows||[]).map((x:any)=>({...x,customer_name:names.get(String(x.customer_id))||"نامشخص"}))});}const id=String(body.shipment_id||"").trim(),approve=body.approve===true;if(!id)return reply(req,{ok:false,error:"shipment_id_required"},400);const rows=await get("shipments?select=id,status&id=eq."+encodeURIComponent(id)+"&limit=1");const row=Array.isArray(rows)?rows[0]:null;if(!row||row.status!=="pending_approval")return reply(req,{ok:false,error:"pending_shipment_not_found"},409);const status=approve?"sent":"rejected";const upd=await fetch(BASE+"/rest/v1/shipments?id=eq."+encodeURIComponent(id)+"&status=eq.pending_approval",{method:"PATCH",headers:{"content-type":"application/json",apikey:key,authorization:"Bearer "+key,Prefer:"return=minimal"},body:JSON.stringify({status})});if(!upd.ok)throw new Error("shipment_review_failed:"+upd.status);const verify=await get("shipments?select=id,status&id=eq."+encodeURIComponent(id)+"&limit=1");const saved=Array.isArray(verify)?verify[0]:null;if(!saved||saved.status!==status)return reply(req,{ok:false,error:"shipment_review_verification_failed"},409);
       let notification:any={ok:true,delivery_confirmed:false,skipped:!approve};
       let notificationStatus=approve?"failed":"not_applicable",notificationError:string|null=approve?"notification_not_attempted":null,sent=0,failed=0;
       if(approve){
@@ -276,16 +288,16 @@ Deno.serve(async (req: Request) => {
       }
       const finalRows=await get("shipments?select=id,status,notification_status,notification_sent_count,notification_failed_count,notification_error&id=eq."+encodeURIComponent(id)+"&limit=1");
       const finalShipment=Array.isArray(finalRows)?finalRows[0]:null;
-      if(!finalShipment||finalShipment.status!==status||finalShipment.notification_status!==notificationStatus)return send({ok:false,error:"shipment_review_final_verification_failed",request:finalShipment},409);
-      return send({ok:true,verified:true,shipment_id:id,status,request:finalShipment,notification});}
-    if(action==="driver_freight_requests"||action==="review_driver_freight_request"){if(!metadataAdmin)return send({ok:false,error:"admin_only"},403);if(action==="driver_freight_requests"){const rows=await get("driver_freight_requests?select=id,driver_user_id,driver_name,greenhouse,shipment_ids,trip_date,bucket_count,requested_amount_rial,approved_amount_rial,status,driver_note,manager_note,created_at,updated_at,reviewed_by,reviewed_at&status=neq.rejected&order=created_at.desc&limit=2000");return send({ok:true,requests:Array.isArray(rows)?rows:[]});}const requestId=String(body.request_id||"").trim(),approve=body.approve===true,note=String(body.manager_note||"").trim().slice(0,500),amountRaw=body.approved_amount_rial,amount=amountRaw==null||amountRaw===""?null:Number(amountRaw);if(!requestId)return send({ok:false,error:"request_id_required"},400);if(approve&&amount!==null&&(!Number.isSafeInteger(amount)||amount<0))return send({ok:false,error:"invalid_approved_amount"},400);const rpc=await fetch(BASE+"/rest/v1/rpc/review_driver_freight_request",{method:"POST",headers:{"content-type":"application/json",apikey:key,authorization:"Bearer "+key},body:JSON.stringify({p_request_id:requestId,p_approve:approve,p_approved_amount_rial:amount,p_manager_note:note||null,p_reviewer:String(claims.sub)})});const result=await rpc.json().catch(()=>null);if(!rpc.ok)return send({ok:false,error:"freight_review_failed",detail:result},409);const verify=await get("driver_freight_requests?select=id,status,requested_amount_rial,approved_amount_rial,reviewed_by,reviewed_at&id=eq."+encodeURIComponent(requestId)+"&limit=1");const saved=Array.isArray(verify)?verify[0]:null;if(!saved||saved.status!==(approve?"approved":"rejected")||String(saved.reviewed_by)!==String(claims.sub)||(approve&&Number(saved.approved_amount_rial)!==(amount===null?Number(saved.requested_amount_rial):amount)))return send({ok:false,error:"freight_review_verification_failed"},409);return send({ok:true,verified:true,request:saved});}
-    if(action==="pending_driver_bucket_returns"||action==="review_driver_bucket_return"){if(!metadataAdmin)return send({ok:false,error:"admin_only"},403);if(action==="pending_driver_bucket_returns"){const rows=await get("driver_bucket_return_requests?select=id,greenhouse,driver_name,bucket_count,status,driver_note,created_at&status=eq.pending&order=created_at.asc");return send({ok:true,requests:Array.isArray(rows)?rows:[]});}const requestId=String(body.request_id||"").trim(),approve=body.approve===true,note=String(body.manager_note||"").trim().slice(0,500);if(!requestId)return send({ok:false,error:"request_id_required"},400);const rpc=await fetch(BASE+"/rest/v1/rpc/review_driver_bucket_return",{method:"POST",headers:{"content-type":"application/json",apikey:key,authorization:"Bearer "+key},body:JSON.stringify({p_request_id:requestId,p_approve:approve,p_manager_note:note||null,p_reviewer:String(claims.sub)})});const result=await rpc.json().catch(()=>null);if(!rpc.ok)return send({ok:false,error:"review_failed",detail:result},409);const verify=await get("driver_bucket_return_requests?select=id,status,bucket_count,ledger_id,reviewed_by&id=eq."+encodeURIComponent(requestId)+"&limit=1");if(!Array.isArray(verify)||verify.length!==1||verify[0].status!==(approve?"approved":"rejected")||String(verify[0].reviewed_by)!==String(claims.sub)||(approve&&!verify[0].ledger_id))return send({ok:false,error:"review_verification_failed"},409);return send({ok:true,verified:true,request:verify[0]});}
+      if(!finalShipment||finalShipment.status!==status||finalShipment.notification_status!==notificationStatus)return reply(req,{ok:false,error:"shipment_review_final_verification_failed",request:finalShipment},409);
+      return reply(req,{ok:true,verified:true,shipment_id:id,status,request:finalShipment,notification});}
+    if(action==="driver_freight_requests"||action==="review_driver_freight_request"){if(!metadataAdmin)return reply(req,{ok:false,error:"admin_only"},403);if(action==="driver_freight_requests"){const rows=await get("driver_freight_requests?select=id,driver_user_id,driver_name,greenhouse,shipment_ids,trip_date,bucket_count,requested_amount_rial,approved_amount_rial,status,driver_note,manager_note,created_at,updated_at,reviewed_by,reviewed_at&status=neq.rejected&order=created_at.desc&limit=2000");return reply(req,{ok:true,requests:Array.isArray(rows)?rows:[]});}const requestId=String(body.request_id||"").trim(),approve=body.approve===true,note=String(body.manager_note||"").trim().slice(0,500),amountRaw=body.approved_amount_rial,amount=amountRaw==null||amountRaw===""?null:Number(amountRaw);if(!requestId)return reply(req,{ok:false,error:"request_id_required"},400);if(approve&&amount!==null&&(!Number.isSafeInteger(amount)||amount<0))return reply(req,{ok:false,error:"invalid_approved_amount"},400);const rpc=await fetch(BASE+"/rest/v1/rpc/review_driver_freight_request",{method:"POST",headers:{"content-type":"application/json",apikey:key,authorization:"Bearer "+key},body:JSON.stringify({p_request_id:requestId,p_approve:approve,p_approved_amount_rial:amount,p_manager_note:note||null,p_reviewer:String(claims.sub)})});const result=await rpc.json().catch(()=>null);if(!rpc.ok)return reply(req,{ok:false,error:"freight_review_failed",detail:result},409);const verify=await get("driver_freight_requests?select=id,status,requested_amount_rial,approved_amount_rial,reviewed_by,reviewed_at&id=eq."+encodeURIComponent(requestId)+"&limit=1");const saved=Array.isArray(verify)?verify[0]:null;if(!saved||saved.status!==(approve?"approved":"rejected")||String(saved.reviewed_by)!==String(claims.sub)||(approve&&Number(saved.approved_amount_rial)!==(amount===null?Number(saved.requested_amount_rial):amount)))return reply(req,{ok:false,error:"freight_review_verification_failed"},409);return reply(req,{ok:true,verified:true,request:saved});}
+    if(action==="pending_driver_bucket_returns"||action==="review_driver_bucket_return"){if(!metadataAdmin)return reply(req,{ok:false,error:"admin_only"},403);if(action==="pending_driver_bucket_returns"){const rows=await get("driver_bucket_return_requests?select=id,greenhouse,driver_name,bucket_count,status,driver_note,created_at&status=eq.pending&order=created_at.asc");return reply(req,{ok:true,requests:Array.isArray(rows)?rows:[]});}const requestId=String(body.request_id||"").trim(),approve=body.approve===true,note=String(body.manager_note||"").trim().slice(0,500);if(!requestId)return reply(req,{ok:false,error:"request_id_required"},400);const rpc=await fetch(BASE+"/rest/v1/rpc/review_driver_bucket_return",{method:"POST",headers:{"content-type":"application/json",apikey:key,authorization:"Bearer "+key},body:JSON.stringify({p_request_id:requestId,p_approve:approve,p_manager_note:note||null,p_reviewer:String(claims.sub)})});const result=await rpc.json().catch(()=>null);if(!rpc.ok)return reply(req,{ok:false,error:"review_failed",detail:result},409);const verify=await get("driver_bucket_return_requests?select=id,status,bucket_count,ledger_id,reviewed_by&id=eq."+encodeURIComponent(requestId)+"&limit=1");if(!Array.isArray(verify)||verify.length!==1||verify[0].status!==(approve?"approved":"rejected")||String(verify[0].reviewed_by)!==String(claims.sub)||(approve&&!verify[0].ledger_id))return reply(req,{ok:false,error:"review_verification_failed"},409);return reply(req,{ok:true,verified:true,request:verify[0]});}
   const sectionByAction:any={overview:"home",customer_balances:"balances",customer_ledger:"balances",unmatched_transactions:"amb",reconcile_deposit:"amb",reconcile_withdrawal:"amb",transaction_ledger:"ledger",bank_balance_reconciliation:"bankRecon",create_bank_reconciliation_adjustment:"bankRecon",shipments_without_invoice:"ship",monthly_shipment_summary:"ship",shipment_form_options:"ship",create_shipment:"ship",delete_shipment:"ship",create_invoice_for_shipment:"invoices",monthly_sales_monitor:"invoices",vendor_options:"vendors",create_vendor:"vendors",update_vendor:"vendors",daily_harvest_summary:"harvest",driver_freight_requests:"freight",review_driver_freight_request:"freight",returned_buckets:"buckets",create_returned_bucket:"buckets",driver_bucket_ledger:"buckets",create_driver_bucket_return:"buckets",save_daily_harvest:"harvest"};
   const writeActions=new Set(["reconcile_deposit","reconcile_withdrawal","create_bank_reconciliation_adjustment","create_shipment","delete_shipment","create_invoice_for_shipment","create_vendor","update_vendor","create_returned_bucket","create_driver_bucket_return","review_driver_freight_request","save_daily_harvest"]);
-  const section=sectionByAction[action];if(!metadataAdmin&&section){const p=sectionPermissions[section];if(!p?.view)return send({ok:false,error:"section_access_denied",section},403);if(writeActions.has(action)&&!p.write)return send({ok:false,error:"section_write_denied",section},403);}
+  const section=sectionByAction[action];if(!metadataAdmin&&section){const p=sectionPermissions[section];if(!p?.view)return reply(req,{ok:false,error:"section_access_denied",section},403);if(writeActions.has(action)&&!p.write)return reply(req,{ok:false,error:"section_write_denied",section},403);}
 
   const readOnlyActions=["overview","customer_balances","customer_ledger","transaction_ledger","unmatched_transactions","shipments_without_invoice","monthly_sales_monitor","bank_balance_reconciliation","daily_harvest_summary","cold_storage_summary","monthly_shipment_summary","returned_buckets","driver_freight_requests"];
-  if(isReadOnly && !readOnlyActions.includes(action) && !(accessRows.some((x:any)=>x.role==="supervisor")&&["daily_harvest_summary","save_daily_harvest"].includes(action))) return send({ok:false,error:"read_only_access"},403);
+  if(isReadOnly && !readOnlyActions.includes(action) && !(accessRows.some((x:any)=>x.role==="supervisor")&&["daily_harvest_summary","save_daily_harvest"].includes(action))) return reply(req,{ok:false,error:"read_only_access"},403);
   let scopedAccountIds=new Set<string>(), scopedWriteAccountIds=new Set<string>();
   if(!metadataAdmin) {
     for(const gh of allowedGreenhouses) {
@@ -499,6 +511,32 @@ Deno.serve(async (req: Request) => {
       const flower_truck_drivers=Array.from(new Set(candidates.map((x:any)=>String(x||"").trim()).filter((x:string)=>x.length>0 && x!=="راننده ماشین گل")));
       return send({ok:true,source:"supabase",customers:customers||[],flower_truck_drivers,contracts:Array.isArray(contracts)?contracts:[]});
     }
+    if(action==="customer_contract_form_options") {
+      if(!metadataAdmin&&!accessRows.some((x:any)=>x.role==="accountant")) return reply(req,{ok:false,error:"contract_admin_required"},403);
+      const customers=await get("customers?select=id,name,is_active&is_active=eq.true&order=name.asc&limit=3000");
+      return reply(req,{ok:true,verified:true,customers:Array.isArray(customers)?customers:[]});
+    }
+    if(action==="create_customer_contract") {
+      if(!metadataAdmin&&!accessRows.some((x:any)=>x.role==="accountant")) return reply(req,{ok:false,error:"contract_admin_required"},403);
+      const customerId=typeof body.customer_id==="string"?body.customer_id.trim():"";
+      const greenhouse=String(body.greenhouse||"");
+      const start=String(body.contract_start_date||"").trim(),end=String(body.contract_end_date||"").trim();
+      const quantity=Number(body.quantity_per_period),periodPrice=Number(body.period_price_rial);
+      const unitRaw=body.unit_price_rial===null||body.unit_price_rial===""||body.unit_price_rial===undefined?null:Number(body.unit_price_rial);
+      const notes=typeof body.notes==="string"?body.notes.trim().slice(0,2000):"";
+      const iso=/^\d{4}-\d{2}-\d{2}$/;
+      if(!customerId||!["azna","khorramabad"].includes(greenhouse)||!writeGreenhouses.has(greenhouse)||!iso.test(start)||!iso.test(end)||end<start||!Number.isSafeInteger(quantity)||quantity<1||quantity>100000||!Number.isSafeInteger(periodPrice)||periodPrice<1||periodPrice>9000000000000000||(unitRaw!==null&&(!Number.isFinite(unitRaw)||unitRaw<=0||unitRaw>9000000000000000))) return reply(req,{ok:false,error:"invalid_customer_contract_input"},400);
+      const customerRows=await get("customers?select=id,name,is_active&id=eq."+encodeURIComponent(customerId)+"&is_active=eq.true&limit=1");
+      if(!Array.isArray(customerRows)||!customerRows.length)return reply(req,{ok:false,error:"active_customer_not_found"},404);
+      const overlaps=await get("customer_contracts?select=id,contract_start_date,contract_end_date,is_active&customer_id=eq."+encodeURIComponent(customerId)+"&greenhouse=eq."+encodeURIComponent(greenhouse)+"&is_active=eq.true&contract_start_date=lte."+encodeURIComponent(end)+"&contract_end_date=gte."+encodeURIComponent(start)+"&limit=5");
+      if(Array.isArray(overlaps)&&overlaps.length)return reply(req,{ok:false,error:"overlapping_active_contract_exists",conflicts:overlaps},409);
+      const id="contract_"+crypto.randomUUID().replace(/-/g,"");
+      await post("customer_contracts",{id,customer_id:customerId,greenhouse,contract_start_date:start,contract_end_date:end,delivery_frequency:"weekly",quantity_per_period:quantity,period_price_rial:periodPrice,unit_price_rial:unitRaw,notes:notes||null,is_active:true,updated_at:new Date().toISOString()});
+      const savedRows=await get("customer_contracts?select=id,customer_id,greenhouse,contract_start_date,contract_end_date,delivery_frequency,quantity_per_period,period_price_rial,unit_price_rial,notes,is_active&id=eq."+encodeURIComponent(id)+"&limit=1");
+      const saved=Array.isArray(savedRows)?savedRows[0]:null;
+      if(!saved||saved.customer_id!==customerId||saved.greenhouse!==greenhouse||saved.contract_start_date!==start||saved.contract_end_date!==end||Number(saved.quantity_per_period)!==quantity||Number(saved.period_price_rial)!==periodPrice||saved.is_active!==true)return reply(req,{ok:false,error:"customer_contract_verification_failed"},409);
+      return reply(req,{ok:true,verified:true,contract:saved,customer_name:customerRows[0].name});
+    }
     if(action==="customer_contract_reports") {
       if(hasSupervisor) return send({ok:false,error:"manager_access_required_for_contract_reports"},403);
       const contracts=await get("customer_contracts?select=id,customer_id,greenhouse,contract_start_date,contract_end_date,delivery_frequency,quantity_per_period,period_price_rial,unit_price_rial,notes,is_active&order=contract_start_date.desc&limit=500");
@@ -546,7 +584,7 @@ Deno.serve(async (req: Request) => {
       if(!metadataAdmin) return send({ok:false,error:"admin_only"},403);
       const targetShipmentDate="2026-11-24";
       const rows=await get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status,notification_status,notification_last_attempt_at,notification_sent_at,notification_sent_count,notification_failed_count,notification_error&status=eq.sent&notification_status=in.(pending,failed,unknown)&shipped_at=eq."+targetShipmentDate+"&order=shipped_at.asc,id.asc&limit=500");
-      const list=Array.isArray(rows)?rows:[];
+      const list=(Array.isArray(rows)?rows:[]).filter((x:any)=>String(x.customer_id||"")!=="cust_ee64c7baaf57477e8d2d583d89566c3e");
       const ids=[...new Set(list.map((x:any)=>String(x.customer_id||"")).filter(Boolean))];
       const customers=ids.length?await get("customers?select=id,name&id=in.("+ids.map(encodeURIComponent).join(",")+")"):[];
       const names=new Map((Array.isArray(customers)?customers:[]).map((x:any)=>[String(x.id),String(x.name||"مشتری")]));
@@ -740,7 +778,10 @@ Deno.serve(async (req: Request) => {
         const payments=await get("payments?select=id,customer_id,amount_rial,bank_transaction_id&bank_transaction_id=eq."+encodeURIComponent(txId));
         const valid=Array.isArray(payments)&&payments.length===1&&payments[0].customer_id===customerId&&Number(payments[0].amount_rial)===Number(tx.amount_rial)&&tx.customer_id===customerId;
         if(!valid) return send({ok:false,error:"payment_verification_failed",transaction:tx,payments},409);
-        return send({ok:true,verified:true,transaction:tx,payment:payments[0]});
+        const customerRows=await get("customers?select=name&id=eq."+encodeURIComponent(customerId)+"&limit=1");
+        const customerName=Array.isArray(customerRows)?String(customerRows[0]?.name||"مشتری"):"مشتری";
+        const notification=await notifyCustomer(customerId,"رز لر · واریزی ثبت شد","سلام "+customerName+"، واریزی شما به مبلغ "+Number(tx.amount_rial).toLocaleString("fa-IR")+" ریال در حساب رز لر ثبت شد. برای مشاهده مانده به پنل مراجعه کنید.");
+        return send({ok:true,verified:true,transaction:tx,payment:payments[0],notification});
       }
       return send({ok:true,verified:true,transaction:tx,payment_created:false});
     }
@@ -757,7 +798,8 @@ Deno.serve(async (req: Request) => {
       const created=Array.isArray(rows)?rows[0]:rows;
       const verify=await get("customer_account_adjustments?select=id,customer_id,greenhouse,adjustment_type,amount_rial,description&id=eq."+encodeURIComponent(created.id)+"&limit=1");
       if(!Array.isArray(verify)||verify.length!==1||Number(verify[0].amount_rial)!==amount||verify[0].customer_id!==customerId) return send({ok:false,error:"discount_adjustment_verification_failed"},500);
-      return send({ok:true,verified:true,adjustment:verify[0]});
+      const notification=await notifyCustomer(customerId,"رز لر · اصلاح حساب","یک تخفیف/اصلاح به مبلغ "+amount.toLocaleString("fa-IR")+" ریال برای حساب شما ثبت شد. برای مشاهده جزئیات و مانده جدید وارد پنل رز لر شوید.");
+       return send({ok:true,verified:true,adjustment:verify[0],notification});
     }
     if(action==="create_customer_balance_adjustment") {
       if(!metadataAdmin) return send({ok:false,error:"admin_only"},403);
@@ -802,7 +844,8 @@ Deno.serve(async (req: Request) => {
       const expectedCredit=direction==="decrease_debt"?amount:0;
       if(!summary||!ledger||ledger.customer_id!==customerId||ledger.greenhouse!==greenhouse||Number(ledger.debit_rial)!==expectedDebit||Number(ledger.credit_rial)!==expectedCredit||ledger.source_id!==adjustmentId)
         return send({ok:false,error:"customer_balance_adjustment_ledger_verification_failed",adjustment:saved,summary,ledger},409);
-      return send({ok:true,verified:true,direction,adjustment:saved,summary,ledger});
+      const notification=await notifyCustomer(customerId,"رز لر · تغییر مانده حساب","مانده حساب شما به‌روزرسانی شد. مبلغ اصلاح: "+amount.toLocaleString("fa-IR")+" ریال. مانده کل: "+Number(summary.total_balance_rial||0).toLocaleString("fa-IR")+" ریال. برای جزئیات وارد پنل رز لر شوید.");
+       return send({ok:true,verified:true,direction,adjustment:saved,summary,ledger,notification});
     }
     if(action==="delete_customer_account_adjustment") {
       if(!metadataAdmin) return send({ok:false,error:"admin_only"},403);
@@ -821,7 +864,8 @@ Deno.serve(async (req: Request) => {
       const summary=Array.isArray(summaryRows)?summaryRows[0]:null;
       if((Array.isArray(remaining)&&remaining.length)||(Array.isArray(ledgerRows)&&ledgerRows.length)||!summary)
         return send({ok:false,error:"adjustment_delete_verification_failed"},409);
-      return send({ok:true,verified:true,deleted_ids:ids,deleted_count:ids.length,summary});
+      const notification=await notifyCustomer(customerId,"رز لر · اصلاح حساب","یک اصلاح ثبت‌شده از حساب شما حذف شد و مانده حساب دوباره محاسبه شد. مانده کل فعلی: "+Number(summary.total_balance_rial||0).toLocaleString("fa-IR")+" ریال.");
+       return send({ok:true,verified:true,deleted_ids:ids,deleted_count:ids.length,summary,notification});
     }
     if(action==="transfer_customer_balance") {
       if(!metadataAdmin) return send({ok:false,error:"admin_only"},403);
@@ -840,7 +884,8 @@ Deno.serve(async (req: Request) => {
       ]);
       if(!Array.isArray(summary)||summary.length!==1||!Array.isArray(adjustments)||adjustments.length!==2||!Array.isArray(ledger)||ledger.length!==2) return send({ok:false,error:"transfer_verification_failed"},500);
       if(Number(summary[0].total_balance_rial)!==Number(transfer.summary.total_balance_rial)) return send({ok:false,error:"transfer_balance_verification_failed"},500);
-      return send({ok:true,verified:true,transfer:{...transfer,summary:summary[0],adjustments,ledger}});
+      const notification=await notifyCustomer(customerId,"رز لر · جابه‌جایی مانده","مانده حساب شما بین گلخانه‌ها جابه‌جا شد. مانده کل فعلی: "+Number(summary[0].total_balance_rial||0).toLocaleString("fa-IR")+" ریال. برای جزئیات وارد پنل رز لر شوید.");
+       return send({ok:true,verified:true,transfer:{...transfer,summary:summary[0],adjustments,ledger},notification});
     }
     if(action==="customer_ledger") {
       const customerId=typeof body.customer_id==="string"?body.customer_id.trim():"";
@@ -960,7 +1005,13 @@ Deno.serve(async (req: Request) => {
       const inv=Array.isArray(verified)?verified[0]:null;
       if(!inv||Number(inv.amount_rial)!==amount||inv.status!==invoiceStatus||inv.shipment_id!==shipmentId) return send({ok:false,error:"invoice_verification_failed",invoice:inv},409);
       const remaining=await get("invoices?select=id&shipment_id=eq."+encodeURIComponent(shipmentId)+"&limit=1");
-      return send({ok:true,verified:true,invoice:inv,shipment_id:shipmentId,amount_rial:amount,remaining_invoice_linked:Array.isArray(remaining)&&remaining.length===1});
+      let notification:any={ok:true,skipped:supervisorSubmission,reason:supervisorSubmission?"awaiting_manager_approval":null};
+      if(!supervisorSubmission) {
+        const customerRows=await get("customers?select=name&id=eq."+encodeURIComponent(String(shipment.customer_id))+"&limit=1");
+        const customerName=Array.isArray(customerRows)?String(customerRows[0]?.name||"مشتری"):"مشتری";
+        notification=await notifyCustomer(String(shipment.customer_id),"رز لر · فاکتور جدید","سلام "+customerName+"، فاکتور بار شما به مبلغ "+amount.toLocaleString("fa-IR")+" ریال ثبت شد. برای مشاهده جزئیات وارد پنل رز لر شوید.");
+      }
+      return send({ok:true,verified:true,invoice:inv,shipment_id:shipmentId,amount_rial:amount,remaining_invoice_linked:Array.isArray(remaining)&&remaining.length===1,notification});
     }
     if(action==="delete_driver_bucket_ledger") {
  const ledgerId=typeof body.ledger_id==="string"?body.ledger_id.trim():"";
