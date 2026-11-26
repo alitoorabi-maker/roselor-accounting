@@ -962,7 +962,7 @@ function renderS(){
   const notificationStatus=String(x.notification_status||"unknown");
   const notificationLabels={sent:"ارسال به سرویس اعلان تأیید شد",failed:"ارسال اعلان ناموفق",pending:"در انتظار ارسال اعلان",unknown:"وضعیت اعلان نامشخص",not_applicable:"اعلان مشتری اعمال نمی‌شود"};
   const notificationClass=["sent","failed","pending","unknown"].includes(notificationStatus)?notificationStatus:"unknown";
-  const notificationMarkup='<span class="shipment-notification-status '+notificationClass+'">'+(notificationLabels[notificationStatus]||notificationLabels.unknown)+'</span>'+(isRoselorAdmin()&&notificationStatus!=="sent"&&notificationStatus!=="not_applicable"?'<div style="margin-top:7px"><button type="button" class="btn ghost" data-retry-shipment-notification="'+esc(x.id)+'">ارسال مجدد اعلان</button></div>':"");
+  const notificationMarkup='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px"><span class="shipment-notification-status '+notificationClass+'">'+(notificationLabels[notificationStatus]||notificationLabels.unknown)+'</span>'+(isRoselorAdmin()&&notificationStatus!=="not_applicable"?'<button type="button" class="btn ghost" data-retry-shipment-notification="'+esc(x.id)+'" style="padding:5px 10px;font-size:12px;border-color:#c9a64b;color:#f5dfa0">↻ ارسال مجدد</button>':"") + '</div>';
 
   const invoice= x.invoice_amount_rial!=null
    ? '<div class="shipment-amount"><span class="meta">مبلغ فاکتور ثبت‌شده</span><br><strong>'+fmt(x.invoice_amount_rial)+'</strong></div>'
