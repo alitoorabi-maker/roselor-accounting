@@ -1713,3 +1713,71 @@ html body #app .panel.average-panel .avg-person .avg-greenhouse strong .avg-numb
   },1200);
 })();
 </script>
+
+
+<script>
+/* Roselor Android/WebView back handling:
+   Back from any management section returns to the dashboard first.
+   A second Back from the dashboard keeps the normal app-exit behavior. */
+(function () {
+  if (window.__roselorSectionBackGuardInstalled) return;
+  window.__roselorSectionBackGuardInstalled = true;
+
+  function appIsVisible() {
+    const app = document.getElementById("app");
+    return !!app && !app.classList.contains("hidden");
+  }
+
+  function currentSection() {
+    try {
+      return typeof activeManagementTab !== "undefined" ? activeManagementTab : "home";
+    } catch (_) {
+      return "home";
+    }
+  }
+
+  document.addEventListener("click", function () {
+    window.setTimeout(function () {
+      if (!appIsVisible()) return;
+      const section = currentSection();
+
+      if (section !== "home") {
+        const state = history.state;
+        if (state && state.roselorSectionBack) {
+          history.replaceState(
+            { roselorSectionBack: true, section: section },
+            "",
+            location.href
+          );
+        } else {
+          history.pushState(
+            { roselorSectionBack: true, section: section },
+            "",
+            location.href
+          );
+        }
+      } else if (history.state && history.state.roselorSectionBack) {
+        history.back();
+      }
+    }, 0);
+  }, true);
+
+  window.addEventListener("popstate", function (event) {
+    if (!appIsVisible()) return;
+    const section = currentSection();
+
+    // Forward navigation restores the section that was open before Back.
+    if (event.state && event.state.roselorSectionBack) {
+      if (section === "home" && typeof tab === "function") {
+        tab(event.state.section || "home");
+      }
+      return;
+    }
+
+    // First Back from a section returns to the main dashboard, not out of the app.
+    if (section !== "home" && typeof tab === "function") {
+      tab("home");
+    }
+  });
+})();
+</script>
