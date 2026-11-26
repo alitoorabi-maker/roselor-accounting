@@ -635,7 +635,7 @@ Deno.serve(async (req: Request) => {
       const [yy,mm,dd]=today.split("-").map(Number);
       const start=new Date(Date.UTC(yy,mm-1,dd)-210*60000).toISOString();
       const end=new Date(Date.UTC(yy,mm-1,dd+1)-210*60000).toISOString();
-      const rows=await get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,status,created_at&status=eq.sent&created_at=gte."+encodeURIComponent(start)+"&created_at=lt."+encodeURIComponent(end)+"&order=created_at.asc&limit=500");
+      const rows=await get("shipments?select=id,customer_id,greenhouse,quantity_bundles,flower_truck,shipped_at,status,created_at&status=eq.sent&created_at=gte."+encodeURIComponent(start)+"&created_at=lt."+encodeURIComponent(end)+"&order=created_at.asc&limit=500");
       const shipments=Array.isArray(rows)?rows:[];
       if(!shipments.length)return send({ok:true,verified:true,date:today,total:0,results:[]});
       const customerIds=[...new Set(shipments.map((x:any)=>String(x.customer_id||"")).filter(Boolean))];
