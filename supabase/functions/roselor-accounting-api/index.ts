@@ -265,13 +265,13 @@ Deno.serve(async (req: Request) => {
       let notification:any={ok:true,delivery_confirmed:false,skipped:!approve};
       let notificationStatus=approve?"failed":"not_applicable",notificationError:string|null=approve?"notification_not_attempted":null,sent=0,failed=0;
       if(approve){
-        const detail=await get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at&id=eq."+encodeURIComponent(id)+"&limit=1");
+        const detail=await get("shipments?select=id,customer_id,greenhouse,quantity_bundles,shipped_at,flower_truck,bucket_count&id=eq."+encodeURIComponent(id)+"&limit=1");
         const shipment=Array.isArray(detail)?detail[0]:null;
         if(!shipment)throw new Error("approved_shipment_reload_failed");
         const customerRows=await get("customers?select=id,name&id=eq."+encodeURIComponent(String(shipment.customer_id))+"&limit=1");
         const customer=Array.isArray(customerRows)?customerRows[0]:null;
         try{
-          const pushResponse=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:key,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send_customer",customer_id:String(shipment.customer_id),title:"رز لر · بار جدید",body:"بار جدید برای حساب "+String(customer?.name||"شما")+" ثبت و تأیید شد. برای مشاهده جزئیات وارد پنل رز لر شوید.",url:"./customer-portal.html"})});
+          const pushResponse=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:key,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send_customer",customer_id:String(shipment.customer_id),title:"رز لر · بار جدید",body:"بار برای حساب "+String(customer?.name||"شما")+" تأیید شد.\nگلخانه: "+(shipment.greenhouse==="azna"?"ازنا":"خرم‌آباد")+"\nتعداد: "+String(shipment.quantity_bundles||0)+" دسته\nماشین گل: "+String(shipment.flower_truck||"ثبت نشده")+"\nتعداد سطل: "+String(shipment.bucket_count||0)+"\nتاریخ بار: "+String(jalaliDateFromTimestamp(String(shipment.shipped_at))||shipment.shipped_at||"—"),url:"./customer-portal.html"})});
           const pushResult=await pushResponse.json().catch(()=>({ok:false,error:"invalid_push_response"}));
           sent=Number(pushResult.sent||0)+Number(pushResult.fcmSent||0);
           failed=Number(pushResult.failed||0)+Number(pushResult.fcmFailed||0);
