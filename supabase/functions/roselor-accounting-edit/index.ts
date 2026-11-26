@@ -14,6 +14,9 @@ Deno.serve(async(req:Request)=>{
  const key=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");if(!key)return response(req,{ok:false,error:"server_configuration_missing"},500);
  async function db(method:string,path:string,data?:unknown){const r=await fetch(BASE+"/rest/v1/"+path,{method,headers:{apikey:key,authorization:"Bearer "+key,"content-type":"application/json",Prefer:"return=representation"},...(data===undefined?{}:{body:JSON.stringify(data)})});const j=await r.json().catch(()=>null);if(!r.ok)throw Error("database_operation_failed:"+r.status);return j}
  async function scope(gh:string){if(admin)return true;const a=await db("GET","accounting_user_greenhouse_access?select=role,greenhouse&user_id=eq."+encodeURIComponent(String(claims.sub))+"&greenhouse=eq."+encodeURIComponent(gh));return Array.isArray(a)&&a.some((x:any)=>x.role==="accountant"&&x.greenhouse===gh)}
+ async function notifyCustomer(customerId:string,title:string,message:string){
+  try{const r=await fetch(BASE+"/functions/v1/roselor-push",{method:"POST",headers:{apikey:key,authorization:"Bearer "+key,"content-type":"application/json"},body:JSON.stringify({action:"internal_send_customer",customer_id:customerId,title,body:message,url:"./customer-portal.html"})});const j=await r.json().catch(()=>({}));const sent=Number(j.sent||0)+Number(j.fcmSent||0),failed=Number(j.failed||0)+Number(j.fcmFailed||0);return {ok:r.ok&&sent>0,sent,failed,error:!r.ok?String(j.error||"push_http_"+r.status):(sent===0?String(j.error||"no_delivery_confirmed"):null)}}catch(e){return {ok:false,sent:0,failed:0,error:String(e).slice(0,240)}}
+ }
  const reason=typeof body.reason==="string"?body.reason.trim():"";if(reason.length<5||reason.length>500)return response(req,{ok:false,error:"reason_required"},400);
  try{
   if(body.action==="update_invoice_amount"){
@@ -32,7 +35,8 @@ Deno.serve(async(req:Request)=>{
    const audit="\\nاصلاح مبلغ فاکتور توسط "+String(claims.sub)+" در "+new Date().toISOString()+": "+String(inv.amount_rial)+" → "+String(amount)+" ریال؛ کمیسیون "+String(previousCommission)+" → "+String(commission)+" ریال؛ علت: "+reason;
    const upd=await db("PATCH","invoices?id=eq."+encodeURIComponent(id),{amount_rial:amount,commission_rial:commission,net_sales_rial:netSales,notes:String(inv.notes||"").slice(0,3000)+audit});
    const saved=Array.isArray(upd)?upd[0]:null;if(!saved||Number(saved.amount_rial)!==amount||Number(saved.commission_rial)!==commission||Number(saved.net_sales_rial)!==netSales)return response(req,{ok:false,error:"verification_failed"},409);
-   return response(req,{ok:true,verified:true,invoice:saved});
+   const notification=await notifyCustomer(String(sh.customer_id),"رز لر · اصلاح فاکتور","مبلغ فاکتور شما اصلاح شد. مبلغ جدید: "+amount.toLocaleString("fa-IR")+" ریال. علت اصلاح: "+reason+". برای مشاهده جزئیات وارد پنل رز لر شوید.");
+   return response(req,{ok:true,verified:true,invoice:saved,notification});
   }
   if(body.action==="update_bank_transaction_amount"){
    const id=typeof body.transaction_id==="string"?body.transaction_id.trim():"",amount=Number(body.amount_rial);
