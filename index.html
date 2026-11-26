@@ -333,7 +333,22 @@ body{background:radial-gradient(ellipse at 50% 25%,#073d29 0%,#03271b 48%,#00160
 @media(max-width:620px){.nav{grid-template-columns:repeat(2,minmax(0,1fr))}.nav button{min-height:62px}}
 
 .user-access-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.user-card{border:1px solid #c9a64d55;border-radius:16px;padding:14px;margin:10px 0;background:rgba(4,35,23,.55)}.user-details{margin-top:12px;border-top:1px solid #c9a64d44;padding-top:10px}.user-details>summary{cursor:pointer;list-style:none;color:#d9bd70;font-weight:700;padding:10px 12px;border:1px solid #c9a64d55;border-radius:12px;background:rgba(201,166,77,.07);display:flex;align-items:center;justify-content:space-between;gap:10px}.user-details>summary::-webkit-details-marker{display:none}.user-details>summary:after{content:"＋";font-size:1.15rem}.user-details[open]>summary:after{content:"−"}.user-details-content{padding-top:12px}.user-card{display:block}.user-card-summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:64px;padding:8px 10px}.user-card-summary::-webkit-details-marker{display:none}.user-card-summary:after{content:"＋";color:#d9bd70;font-size:1.3rem;margin-inline-start:8px}.user-card[open]>.user-card-summary:after{content:"−"}.user-card-identity{min-width:0;flex:1}.user-card .email{direction:ltr;text-align:left;overflow-wrap:anywhere;display:block}.user-card .meta{margin-top:5px}.user-card .user-details-content{padding:12px 4px 4px;border-top:1px solid #c9a64d44}.user-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.user-access-grid .field{margin:0}@media(max-width:620px){.user-access-grid{grid-template-columns:1fr}.user-card-summary{min-height:70px}}
-</style><body><div class="shell">
+</style><style>
+/* Keep customer account maintenance tools inside one compact, closed-by-default drawer. */
+.customer-ledger-tools{margin:14px 0;border:1px solid rgba(201,166,75,.62);border-radius:16px;background:linear-gradient(145deg,rgba(9,48,34,.82),rgba(4,31,22,.9));overflow:hidden}
+.customer-ledger-tools>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 16px;cursor:pointer;color:#f0d785;touch-action:manipulation}
+.customer-ledger-tools>summary::-webkit-details-marker{display:none}
+.customer-ledger-tools>summary span{display:flex;flex-direction:column;gap:4px;min-width:0}
+.customer-ledger-tools>summary strong{font-size:14px;font-weight:800}
+.customer-ledger-tools>summary small{font-size:11px;line-height:1.6;color:#c5d3c9;font-weight:400}
+.customer-ledger-tools-arrow{font-size:24px;line-height:1;transition:transform .2s;flex:0 0 auto}
+.customer-ledger-tools[open] .customer-ledger-tools-arrow{transform:rotate(180deg)}
+.customer-ledger-tools-body{padding:0 12px 12px}
+.customer-ledger-tools-body>#customerBalanceAdjustmentCard,.customer-ledger-tools-body>#customerBalanceTransferCard{margin:8px 0 12px!important}
+.customer-ledger-tools-body>h3{font-size:14px;margin:18px 2px 8px;color:#e7ce7b}
+@media(max-width:480px){.customer-ledger-tools>summary{padding:13px 14px}.customer-ledger-tools-body{padding:0 9px 10px}}
+</style>
+<body><div class="shell">
 <header class="roselor-banner-header" id="globalAppRefresh" role="button" tabindex="0" aria-label="با لمس لوگوی رز لر، کل برنامه به‌روزرسانی می‌شود"><span class="global-refresh-icon" aria-hidden="true">⟳</span></header>
 
 
@@ -730,6 +745,7 @@ E("search").oninput=renderB;E("showLedger").onclick=()=>{if(!E("ledgerCustomer")
   target.innerHTML=
    '<div class="panel"><div class="head"><h2 class="title">ریز حساب '+esc(d.customer?.name||"")+'</h2><span class="pill">ریال</span></div>'+
    '<h3>'+(balanceGreenhouseFilter==='all'?'مانده هر گلخانه':'مانده '+(balanceGreenhouseFilter==='azna'?'گلخانه ازنا':'گلخانه خرم‌آباد'))+'</h3>'+debtCards+totalCard+
+   '<details class="customer-ledger-tools"><summary><span><strong>ابزارهای اصلاح و انتقال حساب</strong><small>ثبت اصلاحیه، انتقال بین گلخانه‌ها و مشاهده سوابق</small></span><b class="customer-ledger-tools-arrow">⌄</b></summary><div class="customer-ledger-tools-body">'+
    '<div class="card" id="customerBalanceAdjustmentCard" style="border:1px solid #c9a85a;margin-top:12px"><h3>اصلاحیه مانده حساب</h3><p class="meta">نوع اصلاحیه را انتخاب کن؛ مبلغ را همیشه به‌صورت عدد مثبت و به ریال وارد کن. اثر بدهکار یا بستانکار را سامانه اعمال می‌کند.</p>'+
    '<div class="field"><label>نوع اصلاحیه</label><select id="balanceAdjustmentDirection"><option value="increase_debt">افزایش بدهی مشتری</option><option value="decrease_debt">کاهش بدهی مشتری</option></select></div>'+
    '<div class="field"><label>گلخانه</label><select id="balanceAdjustmentGreenhouse"><option value="azna" '+(balanceGreenhouseFilter==="azna"?"selected":"")+'>ازنا</option><option value="khorramabad" '+(balanceGreenhouseFilter==="khorramabad"?"selected":"")+'>خرم‌آباد</option></select></div>'+
@@ -741,7 +757,7 @@ E("search").oninput=renderB;E("showLedger").onclick=()=>{if(!E("ledgerCustomer")
    '<div class="field"><label>گلخانه مقصد</label><select id="transferTo"><option value="khorramabad">خرم‌آباد</option><option value="azna">ازنا</option></select></div>'+
    '<div class="field"><label>مبلغ انتقال (ریال)</label><input id="transferAmount" type="number" min="1" step="1" inputmode="numeric" placeholder="مبلغ دلخواه به ریال"></div>'+
    '<button type="button" class="btn primary" id="saveBalanceTransfer">ثبت انتقال مبلغ</button><div class="meta" id="balanceTransferMsg"></div></div>'+
-   '<h3>سوابق اصلاحیه‌ها</h3><div id="customerAdjustmentHistory">'+adjustmentHistory+'</div>'+
+   '<h3>سوابق اصلاحیه‌ها</h3><div id="customerAdjustmentHistory">'+adjustmentHistory+'</div></div></details>'+
    '<h3>گردش حساب</h3>'+
    (rows.length?'<button type="button" class="btn ghost" id="toggleLedgerEvents">جمع‌کردن گردش حساب</button><div id="ledgerEventsList">'+rows.map(r=>
     '<div class="card ledger-event-card"><div class="ledger-event-head"><div class="ledger-event-title"><button type="button" class="ledger-event-icon" aria-label="نمایش جزئیات سند" title="نمایش جزئیات فاکتور یا واریزی" data-ledger-event-detail="1" data-source-type="'+esc(r.source_type||'')+'" data-source-id="'+esc(r.source_id||'')+'" data-customer-id="'+esc(id)+'">'+(String(r.source_type||"").toLowerCase().includes("payment")?'↙':'▤')+'</button><div><strong>'+esc(r.description||r.source_type||"رویداد حسابداری")+'</strong><div class="ledger-event-date">▦ '+esc(fmtDate(r.event_at||r.created_at))+'</div></div></div><span class="ledger-greenhouse">'+esc(r.greenhouse==="azna"?"ازنا":r.greenhouse==="khorramabad"?"خرم‌آباد":r.greenhouse||"مشترک")+'</span></div><div class="ledger-event-line"><span class="ledger-label"><i class="ledger-arrow debit">↑</i>بدهکار</span><strong>'+fmt(r.debit_rial)+'</strong></div><div class="ledger-event-line"><span class="ledger-label"><i class="ledger-arrow credit">↓</i>بستانکار</span><strong>'+fmt(r.credit_rial)+'</strong></div><div class="ledger-event-balance"><span>▤ &nbsp; مانده حساب</span><strong>'+fmt(r.balance_after_rial)+' <small>ریال</small></strong></div></div>'
