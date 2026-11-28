@@ -649,8 +649,10 @@ function renderContractReports(){
   const c=r.contract,alloc=r.allocations||[],ents=r.entitlements||[],invs=r.invoices||[],pays=r.payments||[];
   const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Tehran"}).format(new Date());
   const todayUtc=Date.parse(today+"T00:00:00Z"),weekday=new Date(todayUtc).getUTCDay();
-  const weekStart=new Date(todayUtc-((weekday+6)%7)*86400000).toISOString().slice(0,10);
-  const weekEnd=new Date(Date.parse(weekStart+"T00:00:00Z")+6*86400000).toISOString().slice(0,10);
+  // Iranian contract workweek: Saturday through Thursday; Friday is the weekly holiday.
+  const daysSinceSaturday=(weekday+1)%7;
+  const weekStart=new Date(todayUtc-daysSinceSaturday*86400000).toISOString().slice(0,10);
+  const weekEnd=new Date(Date.parse(weekStart+"T00:00:00Z")+5*86400000).toISOString().slice(0,10);
   const nextWeekStart=new Date(Date.parse(weekStart+"T00:00:00Z")+7*86400000).toISOString().slice(0,10);
   const weekAlloc=alloc.filter(x=>String(x.delivery_date)>=weekStart&&String(x.delivery_date)<=weekEnd);
   const weeklyDelivered=weekAlloc.reduce((n,x)=>n+Number(x.delivered_bundles||0),0),quota=Number(c.quantity_per_period||0),currentEntitlements=ents.filter(e=>String(e.week_start||"")<=weekStart),remaining=currentEntitlements.reduce((n,e)=>n+Math.max(0,Number(e.quota_bundles||0)-Number(e.consumed_bundles||0)),0);
