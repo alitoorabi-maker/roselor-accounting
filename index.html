@@ -655,7 +655,11 @@ function renderContractReports(){
   const weekEnd=new Date(Date.parse(weekStart+"T00:00:00Z")+5*86400000).toISOString().slice(0,10);
   const nextWeekStart=new Date(Date.parse(weekStart+"T00:00:00Z")+7*86400000).toISOString().slice(0,10);
   const weekAlloc=alloc.filter(x=>String(x.delivery_date)>=weekStart&&String(x.delivery_date)<=weekEnd);
-  const weeklyDelivered=weekAlloc.reduce((n,x)=>n+Number(x.delivered_bundles||0),0),quota=Number(c.quantity_per_period||0),currentEntitlements=ents.filter(e=>String(e.week_start||"")<=weekStart),remaining=currentEntitlements.reduce((n,e)=>n+Math.max(0,Number(e.quota_bundles||0)-Number(e.consumed_bundles||0)),0);
+  const weeklyDelivered=alloc.reduce((n,x)=>{
+   const detail=Array.isArray(x.allocation_detail)?x.allocation_detail:null;
+   if(detail)return n+detail.filter(d=>String(d.week_start||"")===weekStart).reduce((m,d)=>m+Number(d.bundles||0),0);
+   return n+(String(x.delivery_date)>=weekStart&&String(x.delivery_date)<=weekEnd?Number(x.delivered_bundles||0):0);
+  },0),quota=Number(c.quantity_per_period||0),currentEntitlements=ents.filter(e=>String(e.week_start||"")<=weekStart),remaining=currentEntitlements.reduce((n,e)=>n+Math.max(0,Number(e.quota_bundles||0)-Number(e.consumed_bundles||0)),0);
   const nextWeekEntitlement=ents.find(e=>String(e.week_start||"")===nextWeekStart),nextWeekRemaining=nextWeekEntitlement?Math.max(0,Number(nextWeekEntitlement.quota_bundles||0)-Number(nextWeekEntitlement.consumed_bundles||0)):quota;
   const totalDelivered=alloc.reduce((n,x)=>n+Number(x.delivered_bundles||0),0),totalAmount=alloc.reduce((n,x)=>n+Number(x.total_amount_rial||0),0);
   const invoiced=invs.reduce((n,x)=>n+Number(x.net_sales_rial??x.amount_rial??0),0),paid=pays.reduce((n,x)=>n+Number(x.amount_rial||0),0),due=Math.max(0,invoiced-paid),accountBalance=Number(r.account_balance_rial||0),accountLabel=accountBalance>0?"بدهکار مشتری":accountBalance<0?"بستانکار مشتری":"تسویه؛ مانده صفر";
